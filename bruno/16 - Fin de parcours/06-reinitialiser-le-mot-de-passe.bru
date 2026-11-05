@@ -1,0 +1,29 @@
+meta {
+  name: Réinitialiser le mot de passe
+  type: http
+  seq: 6
+}
+
+post {
+  url: {{baseUrl}}/auth/password/reset
+  body: json
+  auth: none
+}
+
+body:json {
+  {
+    "email": "{{ownerEmail}}",
+    "code": "{{otpCode}}",
+    "newPassword": "Nouveau2026"
+  }
+}
+
+tests {
+  test("Statut 200", function () {
+    expect(res.getStatus()).to.equal(200);
+  });
+}
+
+docs {
+  Toutes les sessions du propriétaire sont révoquées.
+}

@@ -1,0 +1,25 @@
+meta {
+  name: Mon abonnement (propriétaire)
+  type: http
+  seq: 3
+}
+
+get {
+  url: {{baseUrl}}/billing/subscription
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{ownerToken}}
+}
+
+tests {
+  test("Statut 200", function () {
+    expect(res.getStatus()).to.equal(200);
+  });
+
+  test("Forfait effectif Premium", function () {
+    expect(res.getBody().effectivePlan.code).to.equal("PREMIUM");
+  });
+}

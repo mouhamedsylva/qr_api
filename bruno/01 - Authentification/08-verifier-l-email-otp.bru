@@ -1,0 +1,36 @@
+meta {
+  name: Vérifier l’email (OTP)
+  type: http
+  seq: 8
+}
+
+post {
+  url: {{baseUrl}}/auth/otp/verify
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{ownerToken}}
+}
+
+body:json {
+  {
+    "channel": "EMAIL",
+    "code": "{{otpCode}}"
+  }
+}
+
+tests {
+  test("Statut 200", function () {
+    expect(res.getStatus()).to.equal(200);
+  });
+
+  test("Email vérifié", function () {
+    expect(res.getBody().emailVerified).to.equal(true);
+  });
+}
+
+docs {
+  AUT-05 : code à usage unique, 10 min, 5 essais.
+}

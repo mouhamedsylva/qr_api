@@ -1,0 +1,21 @@
+meta {
+  name: Lancer la purge manuellement
+  type: http
+  seq: 4
+}
+
+post {
+  url: {{baseUrl}}/admin/jobs/maintenance/run
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{adminToken}}
+}
+
+tests {
+  test("Statut 200", function () {
+    expect(res.getStatus()).to.equal(200);
+  });
+}

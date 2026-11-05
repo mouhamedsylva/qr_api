@@ -1,0 +1,26 @@
+meta {
+  name: Statut de paiement (client)
+  type: http
+  seq: 6
+}
+
+get {
+  url: {{baseUrl}}/public/orders/{{order2Id}}/payments
+  body: none
+  auth: none
+}
+
+headers {
+  X-Order-Token: {{tracking2}}
+}
+
+tests {
+  test("Statut 200", function () {
+    expect(res.getStatus()).to.equal(200);
+  });
+
+  test("Payée", function () {
+    expect(res.getBody().paymentStatus).to.equal("PAID");
+    expect(res.getBody().amountDue).to.equal(0);
+  });
+}

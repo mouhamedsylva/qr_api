@@ -1,0 +1,1053 @@
+// QR-Order — schéma de données
+// Conventions : UUID, horodatage, soft delete (deletedAt), montants en plus petite unité (Int).
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  OWNER
+  MANAGER
+  STAFF
+  CUSTOMER
+}
+
+enum UserStatus {
+  ACTIVE
+  SUSPENDED
+}
+
+enum RestaurantStatus {
+  ACTIVE
+  SUSPENDED
+  BANNED
+}
+
+enum MenuTheme {
+  LIGHT
+  DARK
+}
+
+enum StaffProfile {
+  CUISINE
+  SALLE
+  CAISSE
+  BAR
+}
+
+enum OtpChannel {
+  EMAIL
+  SMS
+}
+
+enum OtpPurpose {
+  VERIFY_EMAIL
+  VERIFY_PHONE
+  RESET_PASSWORD
+}
+
+model User {
+  id               String     @id @default(uuid()) @db.Char(36)
+  email            String     @unique @db.VarChar(191)
+  phone            String?    @unique @db.VarChar(32)
+  passwordHash     String     @db.VarChar(255)
+  firstName        String     @db.VarChar(100)
+  lastName         String     @db.VarChar(100)
+  isSuperAdmin     Boolean    @default(false)
+  status           UserStatus @default(ACTIVE)
+  emailVerifiedAt  DateTime?
+  phoneVerifiedAt  DateTime?
+  termsAcceptedAt  DateTime? // CGU acceptées (CON-02)
+  termsVersion     String?    @db.VarChar(20)
+  failedLoginCount Int        @default(0)
+  lockedUntil      DateTime?
+  createdAt        DateTime   @default(now())
+  updatedAt        DateTime   @updatedAt
+  deletedAt        DateTime?
+
+  memberships      Membership[]
+  ownedRestaurants Restaurant[]     @relation("RestaurantOwner")
+  refreshTokens    RefreshToken[]
+  otpCodes         OtpCode[]
+  auditLogs        AuditLog[]
+  subscription     Subscription?
+  invitationsSent  Invitation[]
+  customerOrders   Order[]          @relation("CustomerOrders")
+  loyaltyAccounts  LoyaltyAccount[]
+  reviews          Review[]
+
+  @@map("users")
+}
+
+model Restaurant {
+  id                   String           @id @default(uuid()) @db.Char(36)
+  ownerId              String           @db.Char(36)
+  name                 String           @db.VarChar(150)
+  slug                 String           @unique @db.VarChar(160)
+  description          String?          @db.Text
+  address              String?          @db.VarChar(255)
+  city                 String?          @db.VarChar(100)
+  country              String           @default("SN") @db.VarChar(2)
+  latitude             Decimal?         @db.Decimal(10, 7)
+  longitude            Decimal?         @db.Decimal(10, 7)
+  phone                String?          @db.VarChar(32)
+  email                String?          @db.VarChar(191)
+  logoUrl              String?          @db.VarChar(500)
+  bannerUrl            String?          @db.VarChar(500)
+  socialLinks          Json?
+  brandColors          Json?
+  menuTheme            MenuTheme        @default(LIGHT)
+  currency             String           @default("XOF") @db.VarChar(3)
+  locale               String           @default("fr-SN") @db.VarChar(10)
+  timezone             String           @default("Africa/Dakar") @db.VarChar(64)
+  priceFormat          String?          @db.VarChar(32)
+  taxEnabled           Boolean          @default(false)
+  taxRateBp            Int              @default(0) // points de base : 1800 = 18 %
+  pricesIncludeTax     Boolean          @default(true)
+  serviceFeeBp         Int              @default(0)
+  orderSeq             Int              @default(0) // compteur des numéros de commande
+  receiptSeq           Int              @default(0) // numérotation séquentielle des reçus (PAY-09)
+  stripeAccountId      String?          @db.VarChar(64) // compte Stripe Connect (PAY-02)
+  stripeChargesEnabled Boolean          @default(false)
+  status               RestaurantStatus @default(ACTIVE)
+  createdById          String?          @db.Char(36)
+  createdAt            DateTime         @default(now())
+  updatedAt            DateTime         @updatedAt
+  deletedAt            DateTime?
+
+  owner            User              @relation("RestaurantOwner", fields: [ownerId], references: [id])
+  memberships      Membership[]
+  openingHours     OpeningHour[]
+  closurePeriods   ClosurePeriod[]
+  auditLogs        AuditLog[]
+  categories       Category[]
+  menuItems        MenuItem[]
+  zones            Zone[]
+  tables           DiningTable[]
+  orders           Order[]
+  realtimeEvents   RealtimeEvent[]
+  payments         Payment[]
+  invitations      Invitation[]
+  promotions       Promotion[]
+  loyaltyProgram   LoyaltyProgram?
+  loyaltyRewards   LoyaltyReward[]
+  loyaltyAccounts  LoyaltyAccount[]
+  stations         Station[]
+  apiKeys          ApiKey[]
+  webhookEndpoints WebhookEndpoint[]
+  reviews          Review[]
+
+  @@index([ownerId])
+  @@map("restaurants")
+}
+
+model OpeningHour {
+  id           String   @id @default(uuid()) @db.Char(36)
+  restaurantId String   @db.Char(36)
+  dayOfWeek    Int // 0 = dimanche … 6 = samedi
+  opensAt      String   @db.VarChar(5) // "HH:mm"
+  closesAt     String   @db.VarChar(5) // "HH:mm", peut être < opensAt (passage de minuit)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  restaurant Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+
+  @@index([restaurantId, dayOfWeek])
+  @@map("opening_hours")
+}
+
+model ClosurePeriod {
+  id           String    @id @default(uuid()) @db.Char(36)
+  restaurantId String    @db.Char(36)
+  startsAt     DateTime
+  endsAt       DateTime
+  reason       String?   @db.VarChar(255)
+  createdById  String?   @db.Char(36)
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  deletedAt    DateTime?
+
+  restaurant Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+
+  @@index([restaurantId, startsAt])
+  @@map("closure_periods")
+}
+
+model Membership {
+  id           String        @id @default(uuid()) @db.Char(36)
+  userId       String        @db.Char(36)
+  restaurantId String        @db.Char(36)
+  role         Role
+  // Surcharges de permissions : { "grant": string[], "deny": string[] }
+  permissions  Json?
+  staffProfile StaffProfile?
+  pinHash      String?       @db.VarChar(255)
+  createdById  String?       @db.Char(36)
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+  deletedAt    DateTime?
+
+  user       User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  restaurant Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, restaurantId])
+  @@index([restaurantId])
+  @@map("memberships")
+}
+
+model RefreshToken {
+  id           String    @id @default(uuid()) @db.Char(36)
+  userId       String    @db.Char(36)
+  tokenHash    String    @unique @db.Char(64)
+  familyId     String    @db.Char(36)
+  expiresAt    DateTime
+  revokedAt    DateTime?
+  replacedById String?   @db.Char(36)
+  userAgent    String?   @db.VarChar(255)
+  ip           String?   @db.VarChar(64)
+  createdAt    DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([familyId])
+  @@map("refresh_tokens")
+}
+
+model OtpCode {
+  id         String     @id @default(uuid()) @db.Char(36)
+  userId     String     @db.Char(36)
+  channel    OtpChannel
+  purpose    OtpPurpose
+  codeHash   String     @db.Char(64)
+  expiresAt  DateTime
+  attempts   Int        @default(0)
+  consumedAt DateTime?
+  createdAt  DateTime   @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, purpose])
+  @@map("otp_codes")
+}
+
+// Journal append-only : jamais mis à jour ni supprimé par l'application.
+model AuditLog {
+  id           String   @id @default(uuid()) @db.Char(36)
+  restaurantId String?  @db.Char(36)
+  actorId      String?  @db.Char(36)
+  action       String   @db.VarChar(100)
+  entity       String?  @db.VarChar(100)
+  entityId     String?  @db.Char(36)
+  before       Json?
+  after        Json?
+  ip           String?  @db.VarChar(64)
+  userAgent    String?  @db.VarChar(255)
+  createdAt    DateTime @default(now())
+
+  restaurant Restaurant? @relation(fields: [restaurantId], references: [id], onDelete: SetNull)
+  actor      User?       @relation(fields: [actorId], references: [id], onDelete: SetNull)
+
+  @@index([restaurantId, createdAt])
+  @@index([actorId])
+  @@map("audit_logs")
+}
+
+// ───────────────────────────── Menus (module 3) ─────────────────────────────
+
+model Category {
+  id           String    @id @default(uuid()) @db.Char(36)
+  restaurantId String    @db.Char(36)
+  parentId     String?   @db.Char(36) // un seul niveau de sous-catégorie
+  name         String    @db.VarChar(120)
+  description  String?   @db.VarChar(500)
+  imageUrl     String?   @db.VarChar(500)
+  position     Int       @default(0)
+  isActive     Boolean   @default(true)
+  createdById  String?   @db.Char(36)
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  deletedAt    DateTime?
+
+  restaurant Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  parent     Category?  @relation("CategoryTree", fields: [parentId], references: [id])
+  children   Category[] @relation("CategoryTree")
+  items      MenuItem[]
+  stationId  String?    @db.Char(36) // poste de préparation par défaut (KDS-02)
+  station    Station?   @relation(fields: [stationId], references: [id], onDelete: SetNull)
+
+  @@index([restaurantId, position])
+  @@map("categories")
+}
+
+model MenuItem {
+  id               String    @id @default(uuid()) @db.Char(36)
+  restaurantId     String    @db.Char(36)
+  categoryId       String    @db.Char(36)
+  name             String    @db.VarChar(150)
+  description      String?   @db.Text
+  priceAmount      Int // plus petite unité de la devise du restaurant
+  costAmount       Int? // coût de revient, pour la marge (ANA-02) ; jamais exposé au client
+  images           Json? // string[]
+  prepTimeMinutes  Int?
+  position         Int       @default(0)
+  isActive         Boolean   @default(true) // visible sur le menu
+  // Disponibilité (MEN-04) : épuisé manuellement, remise auto à une date, stock limité.
+  isAvailable      Boolean   @default(true)
+  availableAgainAt DateTime?
+  stockQuantity    Int? // null = illimité
+  allergens        Json? // string[]
+  dietaryTags      Json? // string[]
+  calories         Int?
+  createdById      String?   @db.Char(36)
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+  deletedAt        DateTime?
+
+  restaurant   Restaurant      @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  category     Category        @relation(fields: [categoryId], references: [id])
+  optionGroups OptionGroup[]
+  orderItems   OrderItem[]
+  promotions   Promotion[]
+  stationId    String?         @db.Char(36) // poste de préparation (prioritaire sur la catégorie)
+  station      Station?        @relation(fields: [stationId], references: [id], onDelete: SetNull)
+  rewards      LoyaltyReward[]
+
+  @@index([restaurantId, categoryId, position])
+  @@map("menu_items")
+}
+
+model OptionGroup {
+  id         String   @id @default(uuid()) @db.Char(36)
+  menuItemId String   @db.Char(36)
+  name       String   @db.VarChar(120)
+  isRequired Boolean  @default(false)
+  minSelect  Int      @default(0)
+  maxSelect  Int      @default(1)
+  position   Int      @default(0)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  menuItem MenuItem @relation(fields: [menuItemId], references: [id], onDelete: Cascade)
+  options  Option[]
+
+  @@index([menuItemId])
+  @@map("option_groups")
+}
+
+model Option {
+  id            String   @id @default(uuid()) @db.Char(36)
+  optionGroupId String   @db.Char(36)
+  name          String   @db.VarChar(120)
+  priceDelta    Int      @default(0)
+  isAvailable   Boolean  @default(true)
+  position      Int      @default(0)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  optionGroup OptionGroup @relation(fields: [optionGroupId], references: [id], onDelete: Cascade)
+
+  @@index([optionGroupId])
+  @@map("options")
+}
+
+// ──────────────────────── Tables, zones & QR (module 5) ────────────────────────
+
+enum TableStatus {
+  FREE
+  OCCUPIED
+  ORDERING
+  BILL_REQUESTED
+  TO_CLEAN
+  RESERVED
+}
+
+enum TableKind {
+  TABLE
+  COUNTER // QR global à emporter / comptoir (TAB-10)
+}
+
+model Zone {
+  id           String    @id @default(uuid()) @db.Char(36)
+  restaurantId String    @db.Char(36)
+  name         String    @db.VarChar(100)
+  position     Int       @default(0)
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  deletedAt    DateTime?
+
+  restaurant Restaurant    @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  tables     DiningTable[]
+
+  @@index([restaurantId])
+  @@map("zones")
+}
+
+model DiningTable {
+  id              String      @id @default(uuid()) @db.Char(36)
+  restaurantId    String      @db.Char(36)
+  zoneId          String?     @db.Char(36)
+  label           String      @db.VarChar(50)
+  capacity        Int?
+  kind            TableKind   @default(TABLE)
+  status          TableStatus @default(FREE)
+  statusChangedAt DateTime    @default(now())
+  // Incrémenté à chaque régénération : invalide les anciens QR (TAB-07).
+  qrVersion       Int         @default(1)
+  position        Int         @default(0)
+  createdById     String?     @db.Char(36)
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+  deletedAt       DateTime?
+
+  restaurant Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  zone       Zone?      @relation(fields: [zoneId], references: [id], onDelete: SetNull)
+  orders     Order[]
+
+  @@index([restaurantId, label])
+  @@map("dining_tables")
+}
+
+// ─────────────────────────── Commandes (module 4) ───────────────────────────
+
+enum OrderMode {
+  DINE_IN
+  TAKEAWAY
+}
+
+enum OrderStatus {
+  PENDING
+  ACCEPTED
+  PREPARING
+  READY
+  SERVED // servie à table ou retirée au comptoir
+  COMPLETED
+  CANCELLED
+  REJECTED
+}
+
+enum OrderSource {
+  CUSTOMER
+  STAFF
+}
+
+enum PaymentStatus {
+  UNPAID
+  PENDING
+  PARTIALLY_PAID
+  PAID
+  PARTIALLY_REFUNDED
+  REFUNDED
+}
+
+model Order {
+  id             String        @id @default(uuid()) @db.Char(36)
+  restaurantId   String        @db.Char(36)
+  number         Int // numéro lisible, séquentiel par établissement
+  tableId        String?       @db.Char(36)
+  mode           OrderMode
+  status         OrderStatus   @default(PENDING)
+  source         OrderSource
+  paymentStatus  PaymentStatus @default(UNPAID)
+  idempotencyKey String        @db.VarChar(100)
+  customerName   String?       @db.VarChar(100)
+  customerPhone  String?       @db.VarChar(32)
+  notes          String?       @db.VarChar(500)
+
+  // Montants en plus petite unité ; paramètres fiscaux figés à la commande.
+  currency         String  @db.VarChar(3)
+  subtotal         Int
+  discountTotal    Int     @default(0)
+  taxTotal         Int
+  serviceFee       Int
+  tipAmount        Int     @default(0)
+  total            Int
+  taxRateBp        Int
+  pricesIncludeTax Boolean
+  serviceFeeBp     Int
+
+  estimatedReadyAt DateTime?
+  acceptedAt       DateTime?
+  readyAt          DateTime?
+  servedAt         DateTime?
+  completedAt      DateTime?
+  paidAt           DateTime?
+  receiptNumber    Int?
+  isRush           Boolean      @default(false) // prioritaire en cuisine (KDS-01)
+  customerId       String?      @db.Char(36) // compte client connecté (CLI-01)
+  promotionId      String?      @db.Char(36)
+  promoCode        String?      @db.VarChar(40) // instantané du code utilisé (CMD-13)
+  cancelledAt      DateTime?
+  cancelReason     String?      @db.VarChar(255)
+  cancelledBy      OrderSource?
+  createdById      String?      @db.Char(36)
+  createdAt        DateTime     @default(now())
+  updatedAt        DateTime     @updatedAt
+
+  restaurant Restaurant   @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  table      DiningTable? @relation(fields: [tableId], references: [id], onDelete: SetNull)
+  items      OrderItem[]
+  payments   Payment[]
+  customer   User?        @relation("CustomerOrders", fields: [customerId], references: [id], onDelete: SetNull)
+  promotion  Promotion?   @relation(fields: [promotionId], references: [id], onDelete: SetNull)
+  review     Review?
+
+  @@unique([restaurantId, idempotencyKey])
+  @@unique([restaurantId, number])
+  @@index([restaurantId, status, createdAt])
+  @@index([restaurantId, createdAt])
+  @@index([tableId])
+  @@map("orders")
+}
+
+model OrderItem {
+  id            String            @id @default(uuid()) @db.Char(36)
+  orderId       String            @db.Char(36)
+  menuItemId    String            @db.Char(36)
+  // Instantané au moment de la commande : le menu peut évoluer ensuite.
+  name          String            @db.VarChar(150)
+  unitPrice     Int // prix de base + options
+  quantity      Int
+  options       Json // [{ groupId, groupName, optionId, name, priceDelta }]
+  notes         String?           @db.VarChar(255)
+  lineTotal     Int
+  batch         Int               @default(1) // 2, 3… pour les commandes additionnelles (CMD-06)
+  // Cuisine (module 11) : poste de préparation figé à la commande, état de la ligne.
+  stationId     String?           @db.Char(36)
+  kitchenStatus KitchenItemStatus @default(PENDING)
+  startedAt     DateTime?
+  readyAt       DateTime?
+  station       Station?          @relation(fields: [stationId], references: [id], onDelete: SetNull)
+  position      Int               @default(0) // ordre du panier
+  batchKey      String?           @db.VarChar(100)
+  createdAt     DateTime          @default(now())
+
+  order    Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  menuItem MenuItem @relation(fields: [menuItemId], references: [id])
+
+  @@index([orderId])
+  @@index([orderId, batchKey])
+  @@map("order_items")
+}
+
+// ─────────────────────── Temps réel (module 8, NOT-06) ───────────────────────
+
+// Journal des événements diffusés : permet le rattrapage après une reconnexion.
+model RealtimeEvent {
+  seq          Int      @id @default(autoincrement())
+  restaurantId String   @db.Char(36)
+  orderId      String?  @db.Char(36)
+  type         String   @db.VarChar(64)
+  payload      Json
+  createdAt    DateTime @default(now())
+
+  restaurant Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+
+  @@index([restaurantId, seq])
+  @@index([orderId, seq])
+  @@map("realtime_events")
+}
+
+// ─────────────────────────── Paiements (module 6) ───────────────────────────
+
+enum PaymentMethod {
+  CASH
+  CARD
+  MOBILE_MONEY
+}
+
+enum PaymentProvider {
+  CASH
+  STRIPE
+  SANDBOX // simulateur (dev/test) en attendant l'agrégateur mobile money
+}
+
+enum PaymentState {
+  PENDING
+  SUCCEEDED
+  FAILED
+  CANCELLED
+}
+
+enum RefundState {
+  PENDING
+  SUCCEEDED
+  FAILED
+}
+
+model Payment {
+  id             String          @id @default(uuid()) @db.Char(36)
+  restaurantId   String          @db.Char(36)
+  orderId        String          @db.Char(36)
+  provider       PaymentProvider
+  method         PaymentMethod
+  status         PaymentState    @default(PENDING)
+  amount         Int
+  currency       String          @db.VarChar(3)
+  applicationFee Int             @default(0) // commission plateforme (PAY-02)
+  refundedAmount Int             @default(0)
+  providerRef    String?         @db.VarChar(100) // id côté fournisseur (PaymentIntent…)
+  operator       String?         @db.VarChar(30) // WAVE, ORANGE_MONEY, FREE_MONEY
+  payerPhone     String?         @db.VarChar(32)
+  idempotencyKey String          @db.VarChar(100)
+  failureReason  String?         @db.VarChar(255)
+  collectedById  String?         @db.Char(36) // membre ayant encaissé (espèces)
+  succeededAt    DateTime?
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+
+  restaurant Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  order      Order      @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  refunds    Refund[]
+
+  @@unique([restaurantId, idempotencyKey])
+  @@unique([provider, providerRef])
+  @@index([orderId])
+  @@index([restaurantId, createdAt])
+  @@map("payments")
+}
+
+model Refund {
+  id           String      @id @default(uuid()) @db.Char(36)
+  paymentId    String      @db.Char(36)
+  restaurantId String      @db.Char(36)
+  amount       Int
+  reason       String      @db.VarChar(255)
+  status       RefundState @default(PENDING)
+  providerRef  String?     @db.VarChar(100)
+  createdById  String?     @db.Char(36)
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+
+  payment Payment @relation(fields: [paymentId], references: [id], onDelete: Cascade)
+
+  @@index([paymentId])
+  @@map("refunds")
+}
+
+// Événements de webhook déjà traités : un événement rejoué n'est appliqué qu'une fois (PAY-08).
+model PaymentWebhookEvent {
+  id          String          @id @default(uuid()) @db.Char(36)
+  provider    PaymentProvider
+  eventId     String          @db.VarChar(100)
+  type        String          @db.VarChar(100)
+  payload     Json
+  processedAt DateTime?
+  error       String?         @db.VarChar(500)
+  createdAt   DateTime        @default(now())
+
+  @@unique([provider, eventId])
+  @@map("payment_webhook_events")
+}
+
+// ──────────────────────────── Équipe (module 7) ────────────────────────────
+
+model Invitation {
+  id           String        @id @default(uuid()) @db.Char(36)
+  restaurantId String        @db.Char(36)
+  email        String?       @db.VarChar(191)
+  phone        String?       @db.VarChar(32)
+  role         Role
+  staffProfile StaffProfile?
+  permissions  Json? // { grant: [], deny: [] }
+  tokenHash    String        @unique @db.Char(64)
+  expiresAt    DateTime
+  acceptedAt   DateTime?
+  acceptedById String?       @db.Char(36)
+  revokedAt    DateTime?
+  invitedById  String        @db.Char(36)
+  createdAt    DateTime      @default(now())
+
+  restaurant Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  invitedBy  User       @relation(fields: [invitedById], references: [id])
+
+  @@index([restaurantId])
+  @@map("invitations")
+}
+
+// ──────────────────── Forfaits & abonnements SaaS (PAY-03) ────────────────────
+
+enum BillingCycle {
+  MONTHLY
+  YEARLY
+}
+
+enum SubscriptionStatus {
+  TRIALING
+  ACTIVE
+  PAST_DUE
+  SUSPENDED
+  CANCELLED
+}
+
+model Plan {
+  id             String   @id @default(uuid()) @db.Char(36)
+  code           String   @unique @db.VarChar(30)
+  name           String   @db.VarChar(60)
+  priceMonthly   Int // plus petite unité de `currency`
+  priceYearly    Int
+  currency       String   @default("XOF") @db.VarChar(3)
+  trialDays      Int      @default(14)
+  // Quotas : null = illimité
+  maxRestaurants Int?
+  maxTables      Int?
+  maxMembers     Int?
+  features       Json // string[] : feature flags (ADM-04)
+  isActive       Boolean  @default(true)
+  position       Int      @default(0)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  subscriptions Subscription[]
+
+  @@map("plans")
+}
+
+// Abonnement du propriétaire : couvre tous ses établissements.
+model Subscription {
+  id                 String             @id @default(uuid()) @db.Char(36)
+  userId             String             @unique @db.Char(36)
+  planId             String             @db.Char(36)
+  status             SubscriptionStatus
+  billingCycle       BillingCycle       @default(MONTHLY)
+  trialEndsAt        DateTime?
+  currentPeriodStart DateTime?
+  currentPeriodEnd   DateTime?
+  graceUntil         DateTime? // période de grâce en cas d'impayé
+  cancelAtPeriodEnd  Boolean            @default(false)
+  lastNotice         String?            @db.VarChar(30) // dernière relance envoyée (PAY-12), pour ne pas la répéter
+  createdAt          DateTime           @default(now())
+  updatedAt          DateTime           @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  plan Plan @relation(fields: [planId], references: [id])
+
+  @@index([status])
+  @@map("subscriptions")
+}
+
+// ──────────────────────── Expérience client (module 10) ────────────────────────
+
+enum PromotionType {
+  PERCENT // value en points de base : 1000 = 10 %
+  AMOUNT // value en plus petite unité monétaire
+  BUY_X_GET_Y // « 2 achetés = 1 offert » sur menuItemId
+  FREE_ITEM // un menuItemId offert (récompense fidélité)
+}
+
+enum PromotionSource {
+  MANUAL
+  LOYALTY // bon généré par l'échange de points
+}
+
+model Promotion {
+  id               String          @id @default(uuid()) @db.Char(36)
+  restaurantId     String          @db.Char(36)
+  code             String          @db.VarChar(40) // stocké en majuscules
+  name             String          @db.VarChar(120)
+  description      String?         @db.VarChar(500)
+  type             PromotionType
+  value            Int             @default(0)
+  buyQuantity      Int?
+  freeQuantity     Int?
+  menuItemId       String?         @db.Char(36)
+  minSubtotal      Int?
+  maxDiscount      Int?
+  startsAt         DateTime?
+  endsAt           DateTime?
+  usageLimit       Int?
+  perCustomerLimit Int?
+  usageCount       Int             @default(0)
+  customerId       String?         @db.Char(36) // bon nominatif
+  source           PromotionSource @default(MANUAL)
+  isActive         Boolean         @default(true)
+  createdById      String?         @db.Char(36)
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime        @updatedAt
+  deletedAt        DateTime?
+
+  restaurant  Restaurant            @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  menuItem    MenuItem?             @relation(fields: [menuItemId], references: [id])
+  redemptions PromotionRedemption[]
+  orders      Order[]
+
+  @@unique([restaurantId, code])
+  @@index([customerId])
+  @@map("promotions")
+}
+
+// Utilisation d'un code par une commande ; libérée si la commande est annulée.
+model PromotionRedemption {
+  id            String    @id @default(uuid()) @db.Char(36)
+  promotionId   String    @db.Char(36)
+  orderId       String    @unique @db.Char(36)
+  customerId    String?   @db.Char(36)
+  customerPhone String?   @db.VarChar(32)
+  discount      Int
+  releasedAt    DateTime?
+  createdAt     DateTime  @default(now())
+
+  promotion Promotion @relation(fields: [promotionId], references: [id], onDelete: Cascade)
+
+  @@index([promotionId, customerId])
+  @@index([promotionId, customerPhone])
+  @@map("promotion_redemptions")
+}
+
+model LoyaltyProgram {
+  restaurantId  String   @id @db.Char(36)
+  isActive      Boolean  @default(true)
+  pointsPerUnit Int      @default(1) // points gagnés…
+  unitAmount    Int      @default(100) // …par tranche de ce montant dépensé
+  expiryDays    Int? // points perdus après N jours sans activité
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  restaurant Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+
+  @@map("loyalty_programs")
+}
+
+model LoyaltyReward {
+  id           String        @id @default(uuid()) @db.Char(36)
+  restaurantId String        @db.Char(36)
+  name         String        @db.VarChar(120)
+  description  String?       @db.VarChar(500)
+  pointsCost   Int
+  type         PromotionType
+  value        Int           @default(0)
+  menuItemId   String?       @db.Char(36)
+  isActive     Boolean       @default(true)
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+  deletedAt    DateTime?
+
+  restaurant Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  menuItem   MenuItem?  @relation(fields: [menuItemId], references: [id])
+
+  @@index([restaurantId])
+  @@map("loyalty_rewards")
+}
+
+model LoyaltyAccount {
+  id             String   @id @default(uuid()) @db.Char(36)
+  restaurantId   String   @db.Char(36)
+  userId         String   @db.Char(36)
+  points         Int      @default(0)
+  lifetimePoints Int      @default(0)
+  lastActivityAt DateTime @default(now())
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  restaurant   Restaurant           @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  user         User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  transactions LoyaltyTransaction[]
+
+  @@unique([restaurantId, userId])
+  @@map("loyalty_accounts")
+}
+
+enum LoyaltyTransactionType {
+  EARN
+  REDEEM
+  EXPIRE
+  ADJUST
+  REVERSAL
+}
+
+model LoyaltyTransaction {
+  id          String                 @id @default(uuid()) @db.Char(36)
+  accountId   String                 @db.Char(36)
+  type        LoyaltyTransactionType
+  points      Int // signé : positif = crédit
+  orderId     String?                @db.Char(36)
+  promotionId String?                @db.Char(36)
+  note        String?                @db.VarChar(255)
+  createdById String?                @db.Char(36)
+  createdAt   DateTime               @default(now())
+
+  account LoyaltyAccount @relation(fields: [accountId], references: [id], onDelete: Cascade)
+
+  @@index([accountId, createdAt])
+  @@index([orderId])
+  @@map("loyalty_transactions")
+}
+
+enum ReviewStatus {
+  PUBLISHED
+  HIDDEN
+}
+
+model Review {
+  id           String       @id @default(uuid()) @db.Char(36)
+  restaurantId String       @db.Char(36)
+  orderId      String       @unique @db.Char(36)
+  customerId   String?      @db.Char(36)
+  authorName   String?      @db.VarChar(100)
+  rating       Int // 1 à 5
+  comment      String?      @db.Text
+  status       ReviewStatus @default(PUBLISHED)
+  hiddenReason String?      @db.VarChar(255)
+  reply        String?      @db.Text
+  repliedAt    DateTime?
+  repliedById  String?      @db.Char(36)
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+
+  restaurant Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  order      Order      @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  customer   User?      @relation(fields: [customerId], references: [id], onDelete: SetNull)
+
+  @@index([restaurantId, status, createdAt])
+  @@map("reviews")
+}
+
+// ─────────────────────────── Cuisine (module 11) ───────────────────────────
+
+enum KitchenItemStatus {
+  PENDING
+  IN_PROGRESS
+  READY
+}
+
+// Poste de préparation : grill, bar, pâtisserie… (KDS-02)
+model Station {
+  id           String    @id @default(uuid()) @db.Char(36)
+  restaurantId String    @db.Char(36)
+  name         String    @db.VarChar(60)
+  color        String?   @db.VarChar(7)
+  position     Int       @default(0)
+  isActive     Boolean   @default(true)
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  deletedAt    DateTime?
+
+  restaurant Restaurant  @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  categories Category[]
+  menuItems  MenuItem[]
+  orderItems OrderItem[]
+
+  @@index([restaurantId])
+  @@map("stations")
+}
+
+// ──────────────────────── Intégrations (module 13) ────────────────────────
+
+// Clé d'API d'un établissement (INT-01). Seule l'empreinte est stockée.
+model ApiKey {
+  id           String    @id @default(uuid()) @db.Char(36)
+  restaurantId String    @db.Char(36)
+  name         String    @db.VarChar(100)
+  prefix       String    @db.VarChar(24) // partie visible, pour identifier la clé
+  keyHash      String    @unique @db.Char(64)
+  scopes       Json // string[]
+  lastUsedAt   DateTime?
+  expiresAt    DateTime?
+  revokedAt    DateTime?
+  createdById  String?   @db.Char(36)
+  createdAt    DateTime  @default(now())
+
+  restaurant Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+
+  @@index([restaurantId])
+  @@map("api_keys")
+}
+
+// Destinataire de webhooks sortants (INT-02).
+model WebhookEndpoint {
+  id           String    @id @default(uuid()) @db.Char(36)
+  restaurantId String    @db.Char(36)
+  url          String    @db.VarChar(500)
+  description  String?   @db.VarChar(255)
+  events       Json // string[]
+  secret       String    @db.VarChar(80) // clé de signature HMAC, communiquée une fois
+  isActive     Boolean   @default(true)
+  failureCount Int       @default(0) // échecs définitifs consécutifs
+  disabledAt   DateTime? // désactivation automatique après trop d'échecs
+  createdById  String?   @db.Char(36)
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  deletedAt    DateTime?
+
+  restaurant Restaurant        @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  deliveries WebhookDelivery[]
+
+  @@index([restaurantId])
+  @@map("webhook_endpoints")
+}
+
+enum WebhookDeliveryStatus {
+  PENDING
+  SUCCEEDED
+  FAILED
+}
+
+model WebhookDelivery {
+  id             String                @id @default(uuid()) @db.Char(36)
+  endpointId     String                @db.Char(36)
+  eventType      String                @db.VarChar(64)
+  payload        Json
+  status         WebhookDeliveryStatus @default(PENDING)
+  attempts       Int                   @default(0)
+  // Toujours fixée par l'application : comparée à son horloge (pas à celle de MySQL).
+  nextAttemptAt  DateTime              @default(now())
+  lastStatusCode Int?
+  lastError      String?               @db.VarChar(500)
+  deliveredAt    DateTime?
+  createdAt      DateTime              @default(now())
+
+  endpoint WebhookEndpoint @relation(fields: [endpointId], references: [id], onDelete: Cascade)
+
+  @@index([status, nextAttemptAt])
+  @@index([endpointId, createdAt])
+  @@map("webhook_deliveries")
+}
+
+// ──────────────────────── Infrastructure ────────────────────────
+
+enum NotificationChannel {
+  EMAIL
+  SMS
+  WHATSAPP
+}
+
+enum NotificationStatus {
+  PENDING
+  SENT
+  FAILED
+}
+
+// File d'envoi des notifications (NOT-04) : persistante, avec nouvelles tentatives.
+model NotificationOutbox {
+  id            String              @id @default(uuid()) @db.Char(36)
+  channel       NotificationChannel
+  to            String              @db.VarChar(191)
+  subject       String?             @db.VarChar(200)
+  body          String              @db.Text
+  template      String?             @db.VarChar(50)
+  status        NotificationStatus  @default(PENDING)
+  attempts      Int                 @default(0)
+  nextAttemptAt DateTime // fixée par l'application
+  lastError     String?             @db.VarChar(500)
+  sentAt        DateTime?
+  createdAt     DateTime            @default(now())
+
+  @@index([status, nextAttemptAt])
+  @@map("notification_outbox")
+}
+
+// Verrou à bail : une tâche planifiée ne tourne que sur une instance à la fois.
+model JobLock {
+  name        String    @id @db.VarChar(64)
+  lockedUntil DateTime
+  owner       String    @db.VarChar(64)
+  lastRunAt   DateTime?
+  lastError   String?   @db.VarChar(500)
+
+  @@map("job_locks")
+}

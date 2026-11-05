@@ -1,0 +1,21 @@
+meta {
+  name: Mes restaurants
+  type: http
+  seq: 13
+}
+
+get {
+  url: {{baseUrl}}/restaurants
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{ownerToken}}
+}
+
+tests {
+  test("Statut 200", function () {
+    expect(res.getStatus()).to.equal(200);
+  });
+}

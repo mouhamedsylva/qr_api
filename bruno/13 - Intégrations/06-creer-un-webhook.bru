@@ -1,0 +1,45 @@
+meta {
+  name: Créer un webhook
+  type: http
+  seq: 6
+}
+
+post {
+  url: {{baseUrl}}/restaurants/{{restaurantId}}/integrations/webhooks
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{ownerToken}}
+}
+
+body:json {
+  {
+    "url": "{{webhookUrl}}",
+    "events": [
+      "order.created",
+      "order.status_changed"
+    ],
+    "description": "Test Bruno"
+  }
+}
+
+script:post-response {
+  bru.setVar("webhookId", res.getBody().id);
+}
+
+tests {
+  test("Statut 201", function () {
+    expect(res.getStatus()).to.equal(201);
+  });
+
+  test("Secret communiqué une fois", function () {
+    expect(res.getBody().secret).to.match(/^whsec_/);
+  });
+}
+
+docs {
+  Par défaut, webhookUrl pointe vers une URL qui répond 404 : on voit les nouvelles tentatives.
+  Mettez une URL https://webhook.site/... dans l’environnement pour voir les envois réels.
+}

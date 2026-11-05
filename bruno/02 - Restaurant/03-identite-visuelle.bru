@@ -1,0 +1,31 @@
+meta {
+  name: Identité visuelle
+  type: http
+  seq: 3
+}
+
+patch {
+  url: {{baseUrl}}/restaurants/{{restaurantId}}/branding
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{ownerToken}}
+}
+
+body:json {
+  {
+    "brandColors": {
+      "primary": "#E4572E",
+      "secondary": "#29335C"
+    },
+    "menuTheme": "DARK"
+  }
+}
+
+tests {
+  test("Statut 200", function () {
+    expect(res.getStatus()).to.equal(200);
+  });
+}

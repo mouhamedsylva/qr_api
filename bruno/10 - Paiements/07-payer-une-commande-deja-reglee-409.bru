@@ -1,0 +1,40 @@
+meta {
+  name: Payer une commande déjà réglée → 409
+  type: http
+  seq: 7
+}
+
+post {
+  url: {{baseUrl}}/public/orders/{{order2Id}}/payments
+  body: json
+  auth: none
+}
+
+headers {
+  X-Order-Token: {{tracking2}}
+  Idempotency-Key: {{idemKey}}
+}
+
+body:json {
+  {
+    "method": "CARD"
+  }
+}
+
+script:pre-request {
+  bru.setVar("idemKey", "k" + Date.now() + Math.random().toString(36).slice(2, 10));
+}
+
+tests {
+  test("Statut 409", function () {
+    expect(res.getStatus()).to.equal(409);
+  });
+
+  test("ORDER_ALREADY_PAID", function () {
+    expect(res.getBody().code).to.equal("ORDER_ALREADY_PAID");
+  });
+}
+
+docs {
+  Aucun double encaissement possible. (Sans STRIPE_SECRET_KEY, la carte passe par le simulateur en dev.)
+}

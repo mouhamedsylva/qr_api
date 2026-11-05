@@ -1,0 +1,29 @@
+meta {
+  name: Événements temps réel (rattrapage)
+  type: http
+  seq: 1
+}
+
+get {
+  url: {{baseUrl}}/restaurants/{{restaurantId}}/events?after=0&limit=50
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{staffToken}}
+}
+
+tests {
+  test("Statut 200", function () {
+    expect(res.getStatus()).to.equal(200);
+  });
+
+  test("Événements de commande", function () {
+    expect(res.getBody().some((e) => e.type === "order.created")).to.equal(true);
+  });
+}
+
+docs {
+  Le temps réel se fait en Socket.IO (namespace /realtime) ; cette route sert au rattrapage et au polling.
+}

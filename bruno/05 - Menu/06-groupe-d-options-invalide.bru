@@ -1,0 +1,45 @@
+meta {
+  name: Groupe d’options invalide
+  type: http
+  seq: 6
+}
+
+post {
+  url: {{baseUrl}}/restaurants/{{restaurantId}}/menu/items
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{ownerToken}}
+}
+
+body:json {
+  {
+    "categoryId": "{{catPlats}}",
+    "name": "Invalide",
+    "priceAmount": 100,
+    "optionGroups": [
+      {
+        "name": "G",
+        "minSelect": 3,
+        "maxSelect": 3,
+        "options": [
+          {
+            "name": "A"
+          }
+        ]
+      }
+    ]
+  }
+}
+
+tests {
+  test("Statut 400", function () {
+    expect(res.getStatus()).to.equal(400);
+  });
+
+  test("Code INVALID_OPTION_GROUP", function () {
+    expect(res.getBody().code).to.equal("INVALID_OPTION_GROUP");
+  });
+}

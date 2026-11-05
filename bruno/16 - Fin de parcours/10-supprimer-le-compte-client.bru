@@ -1,0 +1,31 @@
+meta {
+  name: Supprimer le compte client
+  type: http
+  seq: 10
+}
+
+delete {
+  url: {{baseUrl}}/auth/me
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{customerToken}}
+}
+
+body:json {
+  {
+    "password": "{{password}}"
+  }
+}
+
+tests {
+  test("Statut 204", function () {
+    expect(res.getStatus()).to.equal(204);
+  });
+}
+
+docs {
+  Droit à l’effacement : le compte est anonymisé, les commandes sont conservées.
+}

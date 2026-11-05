@@ -1,0 +1,50 @@
+meta {
+  name: Rejouer la même commande (idempotence)
+  type: http
+  seq: 3
+}
+
+post {
+  url: {{baseUrl}}/public/orders
+  body: json
+  auth: bearer
+}
+
+headers {
+  Idempotency-Key: {{orderIdemKey}}
+}
+
+auth:bearer {
+  token: {{customerToken}}
+}
+
+body:json {
+  {
+    "mode": "DINE_IN",
+    "qrToken": "{{qrToken}}",
+    "items": [
+      {
+        "menuItemId": "{{itemThieb}}",
+        "quantity": 2,
+        "optionIds": [
+          "{{optNormale}}"
+        ]
+      }
+    ]
+  }
+}
+
+tests {
+  test("Statut 200", function () {
+    expect(res.getStatus()).to.equal(200);
+  });
+
+  test("Même commande renvoyée", function () {
+    expect(res.getBody().order.id).to.equal(bru.getVar("orderId"));
+    expect(res.getHeader("idempotent-replayed")).to.equal("true");
+  });
+}
+
+docs {
+  CMD-16 : même clé = même commande, pas de doublon.
+}

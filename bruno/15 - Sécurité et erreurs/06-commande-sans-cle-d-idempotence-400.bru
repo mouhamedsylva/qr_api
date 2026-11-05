@@ -1,0 +1,30 @@
+meta {
+  name: Commande sans clé d’idempotence → 400
+  type: http
+  seq: 6
+}
+
+post {
+  url: {{baseUrl}}/public/orders
+  body: json
+  auth: none
+}
+
+body:json {
+  {
+    "mode": "TAKEAWAY",
+    "restaurantSlug": "{{restaurantSlug}}",
+    "items": [
+      {
+        "menuItemId": "{{itemBissap}}",
+        "quantity": 1
+      }
+    ]
+  }
+}
+
+tests {
+  test("Statut 400", function () {
+    expect(res.getStatus()).to.equal(400);
+  });
+}

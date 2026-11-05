@@ -1,0 +1,25 @@
+meta {
+  name: Mon profil
+  type: http
+  seq: 4
+}
+
+get {
+  url: {{baseUrl}}/auth/me
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{ownerToken}}
+}
+
+tests {
+  test("Statut 200", function () {
+    expect(res.getStatus()).to.equal(200);
+  });
+
+  test("Rôle OWNER sur le restaurant", function () {
+    expect(res.getBody().restaurants[0].role).to.equal("OWNER");
+  });
+}

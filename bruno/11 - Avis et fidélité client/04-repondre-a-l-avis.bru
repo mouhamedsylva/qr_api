@@ -1,0 +1,27 @@
+meta {
+  name: Répondre à l’avis
+  type: http
+  seq: 4
+}
+
+post {
+  url: {{baseUrl}}/restaurants/{{restaurantId}}/reviews/{{reviewId}}/reply
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{ownerToken}}
+}
+
+body:json {
+  {
+    "reply": "Merci Ndeye, à très bientôt !"
+  }
+}
+
+tests {
+  test("Statut 201", function () {
+    expect(res.getStatus()).to.equal(201);
+  });
+}

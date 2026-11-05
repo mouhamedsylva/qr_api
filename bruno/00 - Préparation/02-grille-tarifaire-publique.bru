@@ -1,0 +1,22 @@
+meta {
+  name: Grille tarifaire publique
+  type: http
+  seq: 2
+}
+
+get {
+  url: {{baseUrl}}/billing/plans
+  body: none
+  auth: none
+}
+
+tests {
+  test("Statut 200", function () {
+    expect(res.getStatus()).to.equal(200);
+  });
+
+  test("3 forfaits par défaut au moins", function () {
+    const codes = res.getBody().map((p) => p.code);
+    expect(codes).to.include.members(["STARTER", "PRO", "PREMIUM"]);
+  });
+}

@@ -1,0 +1,31 @@
+meta {
+  name: Transition interdite
+  type: http
+  seq: 8
+}
+
+patch {
+  url: {{baseUrl}}/restaurants/{{restaurantId}}/orders/{{orderId}}/status
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{ownerToken}}
+}
+
+body:json {
+  {
+    "status": "COMPLETED"
+  }
+}
+
+tests {
+  test("Statut 409", function () {
+    expect(res.getStatus()).to.equal(409);
+  });
+
+  test("INVALID_TRANSITION", function () {
+    expect(res.getBody().code).to.equal("INVALID_TRANSITION");
+  });
+}

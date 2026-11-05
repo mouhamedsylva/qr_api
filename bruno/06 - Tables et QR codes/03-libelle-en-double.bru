@@ -1,0 +1,27 @@
+meta {
+  name: Libellé en double
+  type: http
+  seq: 3
+}
+
+post {
+  url: {{baseUrl}}/restaurants/{{restaurantId}}/tables
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{ownerToken}}
+}
+
+body:json {
+  {
+    "label": "T3"
+  }
+}
+
+tests {
+  test("Statut 409", function () {
+    expect(res.getStatus()).to.equal(409);
+  });
+}

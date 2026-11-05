@@ -1,0 +1,25 @@
+meta {
+  name: Rechercher le restaurant
+  type: http
+  seq: 4
+}
+
+get {
+  url: {{baseUrl}}/admin/restaurants?search={{runId}}
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{adminToken}}
+}
+
+tests {
+  test("Statut 200", function () {
+    expect(res.getStatus()).to.equal(200);
+  });
+
+  test("Trouvé", function () {
+    expect(res.getBody().meta.total).to.equal(1);
+  });
+}

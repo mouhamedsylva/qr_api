@@ -1,0 +1,30 @@
+meta {
+  name: Mailpit · email de vérification
+  type: http
+  seq: 6
+}
+
+get {
+  url: {{mailpitUrl}}/api/v1/search?query=to:{{ownerEmail}}
+  body: none
+  auth: none
+}
+
+script:post-response {
+  const mail = res.getBody().messages.find((m) => m.Subject.includes("Vérification"));
+  bru.setVar("mailId", mail ? mail.ID : "");
+}
+
+tests {
+  test("Statut 200", function () {
+    expect(res.getStatus()).to.equal(200);
+  });
+
+  test("Email reçu par SMTP", function () {
+    expect(bru.getVar("mailId")).to.not.equal("");
+  });
+}
+
+docs {
+  Lit l’email envoyé à l’inscription dans Mailpit (http://localhost:8025).
+}

@@ -1,0 +1,29 @@
+meta {
+  name: Connexion avec le nouveau mot de passe
+  type: http
+  seq: 8
+}
+
+post {
+  url: {{baseUrl}}/auth/login
+  body: json
+  auth: none
+}
+
+body:json {
+  {
+    "email": "{{ownerEmail}}",
+    "password": "Nouveau2026"
+  }
+}
+
+script:post-response {
+  bru.setVar("ownerToken", res.getBody().tokens.accessToken);
+  bru.setVar("ownerRefresh", res.getBody().tokens.refreshToken);
+}
+
+tests {
+  test("Statut 200", function () {
+    expect(res.getStatus()).to.equal(200);
+  });
+}

@@ -1,0 +1,25 @@
+meta {
+  name: Ouvert maintenant ?
+  type: http
+  seq: 10
+}
+
+get {
+  url: {{baseUrl}}/restaurants/{{restaurantId}}/is-open
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{ownerToken}}
+}
+
+tests {
+  test("Statut 200", function () {
+    expect(res.getStatus()).to.equal(200);
+  });
+
+  test("Ouvert", function () {
+    expect(res.getBody().isOpen).to.equal(true);
+  });
+}

@@ -1,0 +1,30 @@
+meta {
+  name: Staff : interdit de créer un code
+  type: http
+  seq: 3
+}
+
+post {
+  url: {{baseUrl}}/restaurants/{{restaurantId}}/promotions
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{staffToken}}
+}
+
+body:json {
+  {
+    "code": "NON{{runId}}",
+    "name": "Non",
+    "type": "AMOUNT",
+    "value": 100
+  }
+}
+
+tests {
+  test("Statut 403", function () {
+    expect(res.getStatus()).to.equal(403);
+  });
+}

@@ -1,0 +1,45 @@
+meta {
+  name: Devis du panier
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{baseUrl}}/public/orders/quote
+  body: json
+  auth: none
+}
+
+body:json {
+  {
+    "mode": "DINE_IN",
+    "qrToken": "{{qrToken}}",
+    "promoCode": "{{promoCode}}",
+    "items": [
+      {
+        "menuItemId": "{{itemThieb}}",
+        "quantity": 2,
+        "optionIds": [
+          "{{optNormale}}"
+        ]
+      }
+    ]
+  }
+}
+
+tests {
+  test("Statut 200", function () {
+    expect(res.getStatus()).to.equal(200);
+  });
+
+  test("Remise de 10 %", function () {
+    const b = res.getBody();
+    expect(b.subtotal).to.equal(7000);
+    expect(b.discountTotal).to.equal(700);
+    expect(b.total).to.equal(6300);
+  });
+}
+
+docs {
+  CMD-04 : récapitulatif (remise, taxes, total) sans rien enregistrer.
+}

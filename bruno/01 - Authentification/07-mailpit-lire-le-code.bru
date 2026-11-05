@@ -1,0 +1,26 @@
+meta {
+  name: Mailpit · lire le code
+  type: http
+  seq: 7
+}
+
+get {
+  url: {{mailpitUrl}}/api/v1/message/{{mailId}}
+  body: none
+  auth: none
+}
+
+script:post-response {
+  const m = /(\d{6})/.exec(res.getBody().Text);
+  bru.setVar("otpCode", m ? m[1] : "");
+}
+
+tests {
+  test("Statut 200", function () {
+    expect(res.getStatus()).to.equal(200);
+  });
+
+  test("Code à 6 chiffres", function () {
+    expect(bru.getVar("otpCode")).to.match(/^\d{6}$/);
+  });
+}

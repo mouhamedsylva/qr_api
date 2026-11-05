@@ -1,0 +1,21 @@
+meta {
+  name: Suivi client (jeton de suivi)
+  type: http
+  seq: 4
+}
+
+get {
+  url: {{baseUrl}}/public/orders/{{orderId}}
+  body: none
+  auth: none
+}
+
+headers {
+  X-Order-Token: {{trackingToken}}
+}
+
+tests {
+  test("Statut 200", function () {
+    expect(res.getStatus()).to.equal(200);
+  });
+}

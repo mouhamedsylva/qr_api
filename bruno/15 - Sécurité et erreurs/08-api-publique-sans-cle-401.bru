@@ -1,0 +1,17 @@
+meta {
+  name: API publique sans clé → 401
+  type: http
+  seq: 8
+}
+
+get {
+  url: {{baseUrl}}/integrations/me
+  body: none
+  auth: none
+}
+
+tests {
+  test("Statut 401", function () {
+    expect(res.getStatus()).to.equal(401);
+  });
+}

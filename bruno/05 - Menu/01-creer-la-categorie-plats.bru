@@ -1,0 +1,32 @@
+meta {
+  name: Créer la catégorie Plats
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{baseUrl}}/restaurants/{{restaurantId}}/menu/categories
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{ownerToken}}
+}
+
+body:json {
+  {
+    "name": "Plats",
+    "description": "Nos plats du jour"
+  }
+}
+
+script:post-response {
+  bru.setVar("catPlats", res.getBody().id);
+}
+
+tests {
+  test("Statut 201", function () {
+    expect(res.getStatus()).to.equal(201);
+  });
+}

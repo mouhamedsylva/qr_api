@@ -1,0 +1,37 @@
+meta {
+  name: Modifier le profil
+  type: http
+  seq: 2
+}
+
+patch {
+  url: {{baseUrl}}/restaurants/{{restaurantId}}
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{ownerToken}}
+}
+
+body:json {
+  {
+    "description": "Cuisine sénégalaise maison",
+    "address": "Rue 10, Médina",
+    "latitude": 14.6937,
+    "longitude": -17.4441,
+    "socialLinks": {
+      "instagram": "https://instagram.com/chezawa"
+    }
+  }
+}
+
+tests {
+  test("Statut 200", function () {
+    expect(res.getStatus()).to.equal(200);
+  });
+
+  test("Profil mis à jour", function () {
+    expect(res.getBody().description).to.equal("Cuisine sénégalaise maison");
+  });
+}

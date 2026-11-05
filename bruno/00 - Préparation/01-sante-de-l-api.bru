@@ -1,0 +1,37 @@
+meta {
+  name: Santé de l’API
+  type: http
+  seq: 1
+}
+
+get {
+  url: {{baseUrl}}/health
+  body: none
+  auth: none
+}
+
+script:pre-request {
+  // Identifiants uniques à chaque exécution : la collection peut être rejouée.
+  const runId = Date.now();
+  bru.setVar("runId", runId);
+  bru.setVar("ownerEmail", `owner.${runId}@qrorder.test`);
+  bru.setVar("staffEmail", `staff.${runId}@qrorder.test`);
+  bru.setVar("customerEmail", `client.${runId}@qrorder.test`);
+  bru.setVar("promoCode", `BIENVENUE${String(runId).slice(-5)}`);
+  // Numéro sénégalais unique (77 + 7 chiffres) : le téléphone doit être unique.
+  bru.setVar("ownerPhone", `+22177${String(runId).slice(-7)}`);
+}
+
+tests {
+  test("Statut 200", function () {
+    expect(res.getStatus()).to.equal(200);
+  });
+
+  test("Base de données joignable", function () {
+    expect(res.getBody()).to.include({ status: "ok", database: "up" });
+  });
+}
+
+docs {
+  Point de départ : `GET /health` vérifie l’API et la base. Lance ensuite le dossier dans l’ordre (Runner).
+}

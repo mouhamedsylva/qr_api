@@ -1,0 +1,26 @@
+meta {
+  name: Scan du QR (public)
+  type: http
+  seq: 6
+}
+
+get {
+  url: {{baseUrl}}/public/qr/{{qrToken}}
+  body: none
+  auth: none
+}
+
+tests {
+  test("Statut 200", function () {
+    expect(res.getStatus()).to.equal(200);
+  });
+
+  test("Table et menu en un appel", function () {
+    expect(res.getBody().table.label).to.equal("T1");
+    expect(res.getBody().menu.categories.length).to.be.above(0);
+  });
+}
+
+docs {
+  Ce que la PWA client appelle au scan : établissement + table + menu.
+}

@@ -1,0 +1,31 @@
+meta {
+  name: Anonymiser un client
+  type: http
+  seq: 2
+}
+
+post {
+  url: {{baseUrl}}/restaurants/{{restaurantId}}/privacy/anonymize-customer
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{ownerToken}}
+}
+
+body:json {
+  {
+    "phone": "+221770000001"
+  }
+}
+
+tests {
+  test("Statut 200", function () {
+    expect(res.getStatus()).to.equal(200);
+  });
+
+  test("1 commande anonymisée", function () {
+    expect(res.getBody().orders).to.equal(1);
+  });
+}

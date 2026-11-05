@@ -1,0 +1,42 @@
+meta {
+  name: Payer par Wave (simulateur)
+  type: http
+  seq: 4
+}
+
+post {
+  url: {{baseUrl}}/public/orders/{{order2Id}}/payments
+  body: json
+  auth: none
+}
+
+headers {
+  X-Order-Token: {{tracking2}}
+  Idempotency-Key: {{idemKey}}
+}
+
+body:json {
+  {
+    "method": "MOBILE_MONEY",
+    "operator": "WAVE",
+    "payerPhone": "+221770000001"
+  }
+}
+
+script:pre-request {
+  bru.setVar("idemKey", "k" + Date.now() + Math.random().toString(36).slice(2, 10));
+}
+
+script:post-response {
+  bru.setVar("mmPaymentId", res.getBody().paymentId);
+}
+
+tests {
+  test("Statut 201", function () {
+    expect(res.getStatus()).to.equal(201);
+  });
+
+  test("En attente de l’opérateur", function () {
+    expect(res.getBody().status).to.equal("PENDING");
+  });
+}

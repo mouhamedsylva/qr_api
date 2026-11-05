@@ -1,0 +1,36 @@
+meta {
+  name: Accorder une permission au staff
+  type: http
+  seq: 6
+}
+
+patch {
+  url: {{baseUrl}}/restaurants/{{restaurantId}}/team/members/{{staffMembershipId}}
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{ownerToken}}
+}
+
+body:json {
+  {
+    "permissions": {
+      "grant": [
+        "menu.availability"
+      ],
+      "deny": []
+    }
+  }
+}
+
+tests {
+  test("Statut 200", function () {
+    expect(res.getStatus()).to.equal(200);
+  });
+}
+
+docs {
+  AUT-03 : droits ajustables membre par membre (grant / deny).
+}

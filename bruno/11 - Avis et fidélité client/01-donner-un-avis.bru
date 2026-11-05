@@ -1,0 +1,28 @@
+meta {
+  name: Donner un avis
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{baseUrl}}/public/orders/{{orderId}}/review
+  body: json
+  auth: none
+}
+
+headers {
+  X-Order-Token: {{trackingToken}}
+}
+
+body:json {
+  {
+    "rating": 5,
+    "comment": "Excellent thiéboudienne !"
+  }
+}
+
+tests {
+  test("Statut 201", function () {
+    expect(res.getStatus()).to.equal(201);
+  });
+}

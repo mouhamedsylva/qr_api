@@ -1,0 +1,30 @@
+meta {
+  name: Export comptable
+  type: http
+  seq: 10
+}
+
+get {
+  url: {{baseUrl}}/restaurants/{{restaurantId}}/integrations/accounting-export.csv?from={{fromDate}}&to={{toDate}}
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{ownerToken}}
+}
+
+script:pre-request {
+  bru.setVar("fromDate", new Date(Date.now() - 86400000).toISOString());
+  bru.setVar("toDate", new Date(Date.now() + 60000).toISOString());
+}
+
+tests {
+  test("Statut 200", function () {
+    expect(res.getStatus()).to.equal(200);
+  });
+
+  test("Ventes présentes", function () {
+    expect(res.getBody()).to.include("VENTE");
+  });
+}

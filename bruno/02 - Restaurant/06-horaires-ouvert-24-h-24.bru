@@ -1,0 +1,67 @@
+meta {
+  name: Horaires : ouvert 24 h/24
+  type: http
+  seq: 6
+}
+
+put {
+  url: {{baseUrl}}/restaurants/{{restaurantId}}/opening-hours
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{ownerToken}}
+}
+
+body:json {
+  {
+    "hours": [
+      {
+        "dayOfWeek": 0,
+        "opensAt": "00:00",
+        "closesAt": "00:00"
+      },
+      {
+        "dayOfWeek": 1,
+        "opensAt": "00:00",
+        "closesAt": "00:00"
+      },
+      {
+        "dayOfWeek": 2,
+        "opensAt": "00:00",
+        "closesAt": "00:00"
+      },
+      {
+        "dayOfWeek": 3,
+        "opensAt": "00:00",
+        "closesAt": "00:00"
+      },
+      {
+        "dayOfWeek": 4,
+        "opensAt": "00:00",
+        "closesAt": "00:00"
+      },
+      {
+        "dayOfWeek": 5,
+        "opensAt": "00:00",
+        "closesAt": "00:00"
+      },
+      {
+        "dayOfWeek": 6,
+        "opensAt": "00:00",
+        "closesAt": "00:00"
+      }
+    ]
+  }
+}
+
+tests {
+  test("Statut 200", function () {
+    expect(res.getStatus()).to.equal(200);
+  });
+}
+
+docs {
+  opensAt = closesAt signifie ouvert 24 h. Nécessaire pour que les commandes clients passent à toute heure.
+}

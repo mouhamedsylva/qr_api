@@ -1,0 +1,30 @@
+meta {
+  name: Accepter et créer le compte
+  type: http
+  seq: 3
+}
+
+post {
+  url: {{baseUrl}}/invitations/{{inviteToken}}/register
+  body: json
+  auth: none
+}
+
+body:json {
+  {
+    "firstName": "Moussa",
+    "lastName": "Fall",
+    "password": "{{password}}",
+    "acceptTerms": true
+  }
+}
+
+script:post-response {
+  bru.setVar("staffToken", res.getBody().tokens.accessToken);
+}
+
+tests {
+  test("Statut 201", function () {
+    expect(res.getStatus()).to.equal(201);
+  });
+}

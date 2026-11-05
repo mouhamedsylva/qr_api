@@ -1,0 +1,27 @@
+meta {
+  name: Marquer prioritaire
+  type: http
+  seq: 4
+}
+
+patch {
+  url: {{baseUrl}}/restaurants/{{restaurantId}}/kitchen/orders/{{orderId}}/rush
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{staffToken}}
+}
+
+body:json {
+  {
+    "isRush": true
+  }
+}
+
+tests {
+  test("Statut 200", function () {
+    expect(res.getStatus()).to.equal(200);
+  });
+}

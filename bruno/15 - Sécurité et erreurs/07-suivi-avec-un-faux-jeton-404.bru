@@ -1,0 +1,21 @@
+meta {
+  name: Suivi avec un faux jeton → 404
+  type: http
+  seq: 7
+}
+
+get {
+  url: {{baseUrl}}/public/orders/{{orderId}}
+  body: none
+  auth: none
+}
+
+headers {
+  X-Order-Token: faux
+}
+
+tests {
+  test("Statut 404", function () {
+    expect(res.getStatus()).to.equal(404);
+  });
+}

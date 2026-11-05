@@ -1,0 +1,52 @@
+meta {
+  name: Inscription propriétaire + restaurant
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{baseUrl}}/auth/register
+  body: json
+  auth: none
+}
+
+body:json {
+  {
+    "email": "{{ownerEmail}}",
+    "password": "{{password}}",
+    "firstName": "Awa",
+    "lastName": "Diop",
+    "phone": "{{ownerPhone}}",
+    "restaurantName": "Chez Awa {{runId}}",
+    "city": "Dakar",
+    "country": "SN",
+    "acceptTerms": true
+  }
+}
+
+script:post-response {
+  const b = res.getBody();
+  bru.setVar("ownerToken", b.tokens.accessToken);
+  bru.setVar("ownerRefresh", b.tokens.refreshToken);
+  bru.setVar("ownerUserId", b.user.id);
+  bru.setVar("restaurantId", b.restaurant.id);
+  bru.setVar("restaurantSlug", b.restaurant.slug);
+}
+
+tests {
+  test("Statut 201", function () {
+    expect(res.getStatus()).to.equal(201);
+  });
+
+  test("Restaurant et jetons créés", function () {
+    const b = res.getBody();
+    expect(b.restaurant.id).to.be.a("string");
+    expect(b.tokens.accessToken).to.be.a("string");
+    expect(b.user).to.not.have.property("passwordHash");
+  });
+}
+
+docs {
+  AUT-01 : crée le compte OWNER, son restaurant, les horaires par défaut et un essai Pro de 14 jours.
+  Emails et téléphone sont générés à chaque exécution : la collection peut être rejouée.
+}

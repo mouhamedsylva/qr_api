@@ -1,0 +1,21 @@
+meta {
+  name: Restaurant inconnu → 404
+  type: http
+  seq: 4
+}
+
+get {
+  url: {{baseUrl}}/restaurants/00000000-0000-4000-8000-000000000000
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{ownerToken}}
+}
+
+tests {
+  test("Statut 404", function () {
+    expect(res.getStatus()).to.equal(404);
+  });
+}

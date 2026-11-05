@@ -1,0 +1,21 @@
+meta {
+  name: Page publique (par slug)
+  type: http
+  seq: 12
+}
+
+get {
+  url: {{baseUrl}}/public/restaurants/{{restaurantSlug}}
+  body: none
+  auth: none
+}
+
+tests {
+  test("Statut 200", function () {
+    expect(res.getStatus()).to.equal(200);
+  });
+
+  test("Pas de données internes", function () {
+    expect(res.getBody()).to.not.have.property("ownerId");
+  });
+}

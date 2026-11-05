@@ -1,0 +1,31 @@
+meta {
+  name: Inscription refusée sans CGU
+  type: http
+  seq: 2
+}
+
+post {
+  url: {{baseUrl}}/auth/register
+  body: json
+  auth: none
+}
+
+body:json {
+  {
+    "email": "sans-cgu-{{runId}}@qrorder.test",
+    "password": "{{password}}",
+    "firstName": "A",
+    "lastName": "B",
+    "restaurantName": "X"
+  }
+}
+
+tests {
+  test("Statut 400", function () {
+    expect(res.getStatus()).to.equal(400);
+  });
+
+  test("Erreur de validation uniforme", function () {
+    expect(res.getBody().code).to.equal("VALIDATION_ERROR");
+  });
+}

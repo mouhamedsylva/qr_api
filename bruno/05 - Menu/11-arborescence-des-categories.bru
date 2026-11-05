@@ -1,0 +1,21 @@
+meta {
+  name: Arborescence des catégories
+  type: http
+  seq: 11
+}
+
+get {
+  url: {{baseUrl}}/restaurants/{{restaurantId}}/menu/categories
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{ownerToken}}
+}
+
+tests {
+  test("Statut 200", function () {
+    expect(res.getStatus()).to.equal(200);
+  });
+}

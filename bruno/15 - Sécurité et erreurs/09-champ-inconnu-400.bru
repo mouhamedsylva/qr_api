@@ -1,0 +1,32 @@
+meta {
+  name: Champ inconnu → 400
+  type: http
+  seq: 9
+}
+
+patch {
+  url: {{baseUrl}}/restaurants/{{restaurantId}}
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{ownerToken}}
+}
+
+body:json {
+  {
+    "name": "Ok",
+    "champInconnu": true
+  }
+}
+
+tests {
+  test("Statut 400", function () {
+    expect(res.getStatus()).to.equal(400);
+  });
+}
+
+docs {
+  Les champs non prévus sont refusés (protection contre l’injection de champs).
+}

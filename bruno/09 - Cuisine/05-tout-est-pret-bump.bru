@@ -1,0 +1,35 @@
+meta {
+  name: Tout est prêt (bump)
+  type: http
+  seq: 5
+}
+
+post {
+  url: {{baseUrl}}/restaurants/{{restaurantId}}/kitchen/orders/{{orderId}}/bump
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{staffToken}}
+}
+
+body:json {
+  {
+    "status": "READY"
+  }
+}
+
+tests {
+  test("Statut 200", function () {
+    expect(res.getStatus()).to.equal(200);
+  });
+
+  test("Commande prête", function () {
+    expect(res.getBody().status).to.equal("READY");
+  });
+}
+
+docs {
+  NOT-02 : le client est notifié (temps réel, SMS/email).
+}

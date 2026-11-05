@@ -1,0 +1,23 @@
+meta {
+  name: Déconnexion
+  type: http
+  seq: 9
+}
+
+post {
+  url: {{baseUrl}}/auth/logout
+  body: json
+  auth: none
+}
+
+body:json {
+  {
+    "refreshToken": "{{ownerRefresh}}"
+  }
+}
+
+tests {
+  test("Statut 204", function () {
+    expect(res.getStatus()).to.equal(204);
+  });
+}

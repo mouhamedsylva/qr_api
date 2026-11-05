@@ -1,0 +1,34 @@
+meta {
+  name: Taxes (TVA 18 % incluse)
+  type: http
+  seq: 5
+}
+
+patch {
+  url: {{baseUrl}}/restaurants/{{restaurantId}}/tax
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{ownerToken}}
+}
+
+body:json {
+  {
+    "taxEnabled": true,
+    "taxRateBp": 1800,
+    "pricesIncludeTax": true,
+    "serviceFeeBp": 0
+  }
+}
+
+tests {
+  test("Statut 200", function () {
+    expect(res.getStatus()).to.equal(200);
+  });
+}
+
+docs {
+  Les taux sont en points de base : 1800 = 18 %. Le changement est enregistré dans le journal d’audit.
+}

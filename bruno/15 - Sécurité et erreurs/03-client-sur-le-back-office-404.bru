@@ -1,0 +1,25 @@
+meta {
+  name: Client sur le back-office → 404
+  type: http
+  seq: 3
+}
+
+get {
+  url: {{baseUrl}}/restaurants/{{restaurantId}}
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{customerToken}}
+}
+
+tests {
+  test("Statut 404", function () {
+    expect(res.getStatus()).to.equal(404);
+  });
+}
+
+docs {
+  Un non-membre reçoit 404 : on ne révèle pas l’existence du restaurant.
+}

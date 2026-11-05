@@ -1,0 +1,21 @@
+meta {
+  name: Avis publics
+  type: http
+  seq: 5
+}
+
+get {
+  url: {{baseUrl}}/public/restaurants/{{restaurantSlug}}/reviews
+  body: none
+  auth: none
+}
+
+tests {
+  test("Statut 200", function () {
+    expect(res.getStatus()).to.equal(200);
+  });
+
+  test("Note moyenne", function () {
+    expect(res.getBody().averageRating).to.equal(5);
+  });
+}

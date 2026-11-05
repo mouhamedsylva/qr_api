@@ -1,0 +1,50 @@
+meta {
+  name: Commande saisie par le staff
+  type: http
+  seq: 6
+}
+
+post {
+  url: {{baseUrl}}/restaurants/{{restaurantId}}/orders
+  body: json
+  auth: bearer
+}
+
+headers {
+  Idempotency-Key: {{idemKey}}
+}
+
+auth:bearer {
+  token: {{staffToken}}
+}
+
+body:json {
+  {
+    "mode": "TAKEAWAY",
+    "customerName": "Client comptoir",
+    "items": [
+      {
+        "menuItemId": "{{itemBissap}}",
+        "quantity": 2
+      }
+    ]
+  }
+}
+
+script:pre-request {
+  bru.setVar("idemKey", "k" + Date.now() + Math.random().toString(36).slice(2, 10));
+}
+
+script:post-response {
+  bru.setVar("staffOrderId", res.getBody().id);
+}
+
+tests {
+  test("Statut 201", function () {
+    expect(res.getStatus()).to.equal(201);
+  });
+}
+
+docs {
+  CMD-12 : client sans smartphone.
+}

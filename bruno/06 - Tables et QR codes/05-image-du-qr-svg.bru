@@ -1,0 +1,29 @@
+meta {
+  name: Image du QR (SVG)
+  type: http
+  seq: 5
+}
+
+get {
+  url: {{baseUrl}}/restaurants/{{restaurantId}}/tables/{{tableId}}/qr/image?format=svg
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{ownerToken}}
+}
+
+tests {
+  test("Statut 200", function () {
+    expect(res.getStatus()).to.equal(200);
+  });
+
+  test("SVG", function () {
+    expect(res.getHeader("content-type")).to.include("image/svg+xml");
+  });
+}
+
+docs {
+  Essayez aussi ?format=png&size=512 pour l’imprimer.
+}

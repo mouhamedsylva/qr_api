@@ -1,0 +1,27 @@
+meta {
+  name: Staff : remettre disponible
+  type: http
+  seq: 10
+}
+
+patch {
+  url: {{baseUrl}}/restaurants/{{restaurantId}}/menu/items/{{itemBissap}}/availability
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{staffToken}}
+}
+
+body:json {
+  {
+    "isAvailable": true
+  }
+}
+
+tests {
+  test("Statut 200", function () {
+    expect(res.getStatus()).to.equal(200);
+  });
+}

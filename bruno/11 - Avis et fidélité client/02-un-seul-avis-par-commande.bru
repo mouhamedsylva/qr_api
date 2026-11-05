@@ -1,0 +1,27 @@
+meta {
+  name: Un seul avis par commande
+  type: http
+  seq: 2
+}
+
+post {
+  url: {{baseUrl}}/public/orders/{{orderId}}/review
+  body: json
+  auth: none
+}
+
+headers {
+  X-Order-Token: {{trackingToken}}
+}
+
+body:json {
+  {
+    "rating": 1
+  }
+}
+
+tests {
+  test("Statut 409", function () {
+    expect(res.getStatus()).to.equal(409);
+  });
+}

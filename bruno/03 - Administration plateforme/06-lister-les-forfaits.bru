@@ -1,0 +1,21 @@
+meta {
+  name: Lister les forfaits
+  type: http
+  seq: 6
+}
+
+get {
+  url: {{baseUrl}}/admin/plans
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{adminToken}}
+}
+
+tests {
+  test("Statut 200", function () {
+    expect(res.getStatus()).to.equal(200);
+  });
+}

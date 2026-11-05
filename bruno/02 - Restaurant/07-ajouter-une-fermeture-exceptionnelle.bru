@@ -1,0 +1,39 @@
+meta {
+  name: Ajouter une fermeture exceptionnelle
+  type: http
+  seq: 7
+}
+
+post {
+  url: {{baseUrl}}/restaurants/{{restaurantId}}/closures
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{ownerToken}}
+}
+
+body:json {
+  {
+    "startsAt": "{{closureStart}}",
+    "endsAt": "{{closureEnd}}",
+    "reason": "Inventaire annuel"
+  }
+}
+
+script:pre-request {
+  const start = new Date(Date.now() + 30 * 86400000);
+  bru.setVar("closureStart", start.toISOString());
+  bru.setVar("closureEnd", new Date(start.getTime() + 86400000).toISOString());
+}
+
+script:post-response {
+  bru.setVar("closureId", res.getBody().id);
+}
+
+tests {
+  test("Statut 201", function () {
+    expect(res.getStatus()).to.equal(201);
+  });
+}

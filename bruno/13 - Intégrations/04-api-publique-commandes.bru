@@ -1,0 +1,21 @@
+meta {
+  name: API publique · commandes
+  type: http
+  seq: 4
+}
+
+get {
+  url: {{baseUrl}}/integrations/orders
+  body: none
+  auth: none
+}
+
+headers {
+  X-Api-Key: {{apiKey}}
+}
+
+tests {
+  test("Statut 200", function () {
+    expect(res.getStatus()).to.equal(200);
+  });
+}

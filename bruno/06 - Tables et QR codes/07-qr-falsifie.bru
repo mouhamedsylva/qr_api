@@ -1,0 +1,21 @@
+meta {
+  name: QR falsifié
+  type: http
+  seq: 7
+}
+
+get {
+  url: {{baseUrl}}/public/qr/{{qrToken}}x
+  body: none
+  auth: none
+}
+
+tests {
+  test("Statut 404", function () {
+    expect(res.getStatus()).to.equal(404);
+  });
+
+  test("INVALID_QR", function () {
+    expect(res.getBody().code).to.equal("INVALID_QR");
+  });
+}

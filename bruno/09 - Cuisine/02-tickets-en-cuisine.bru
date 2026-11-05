@@ -1,0 +1,30 @@
+meta {
+  name: Tickets en cuisine
+  type: http
+  seq: 2
+}
+
+get {
+  url: {{baseUrl}}/restaurants/{{restaurantId}}/kitchen/tickets
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{staffToken}}
+}
+
+script:post-response {
+  const t = res.getBody().find((x) => x.orderId === bru.getVar("orderId"));
+  bru.setVar("orderItemId", t ? t.items[0].id : "");
+}
+
+tests {
+  test("Statut 200", function () {
+    expect(res.getStatus()).to.equal(200);
+  });
+
+  test("Commande acceptée visible", function () {
+    expect(bru.getVar("orderItemId")).to.not.equal("");
+  });
+}

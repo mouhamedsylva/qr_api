@@ -1,0 +1,25 @@
+meta {
+  name: Propriétaire sur l’admin → 403
+  type: http
+  seq: 5
+}
+
+get {
+  url: {{baseUrl}}/admin/restaurants
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{ownerToken}}
+}
+
+tests {
+  test("Statut 403", function () {
+    expect(res.getStatus()).to.equal(403);
+  });
+
+  test("SUPER_ADMIN_REQUIRED", function () {
+    expect(res.getBody().code).to.equal("SUPER_ADMIN_REQUIRED");
+  });
+}

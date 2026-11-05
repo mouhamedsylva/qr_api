@@ -1,0 +1,21 @@
+meta {
+  name: Historique des envois
+  type: http
+  seq: 8
+}
+
+get {
+  url: {{baseUrl}}/restaurants/{{restaurantId}}/integrations/webhooks/{{webhookId}}/deliveries
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{ownerToken}}
+}
+
+tests {
+  test("Statut 200", function () {
+    expect(res.getStatus()).to.equal(200);
+  });
+}

@@ -1,0 +1,41 @@
+meta {
+  name: Ajouter des articles (client)
+  type: http
+  seq: 5
+}
+
+post {
+  url: {{baseUrl}}/public/orders/{{orderId}}/items
+  body: json
+  auth: none
+}
+
+headers {
+  X-Order-Token: {{trackingToken}}
+  Idempotency-Key: {{idemKey}}
+}
+
+body:json {
+  {
+    "items": [
+      {
+        "menuItemId": "{{itemBissap}}",
+        "quantity": 1
+      }
+    ]
+  }
+}
+
+script:pre-request {
+  bru.setVar("idemKey", "k" + Date.now() + Math.random().toString(36).slice(2, 10));
+}
+
+tests {
+  test("Statut 201", function () {
+    expect(res.getStatus()).to.equal(201);
+  });
+
+  test("2e vague", function () {
+    expect(res.getBody().items.some((i) => i.batch === 2)).to.equal(true);
+  });
+}

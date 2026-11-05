@@ -1,0 +1,31 @@
+meta {
+  name: Staff : marquer épuisé
+  type: http
+  seq: 9
+}
+
+patch {
+  url: {{baseUrl}}/restaurants/{{restaurantId}}/menu/items/{{itemBissap}}/availability
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{staffToken}}
+}
+
+body:json {
+  {
+    "isAvailable": false
+  }
+}
+
+tests {
+  test("Statut 200", function () {
+    expect(res.getStatus()).to.equal(200);
+  });
+
+  test("Indisponible", function () {
+    expect(res.getBody().available).to.equal(false);
+  });
+}

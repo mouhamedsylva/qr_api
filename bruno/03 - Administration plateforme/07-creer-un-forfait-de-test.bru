@@ -1,0 +1,41 @@
+meta {
+  name: Créer un forfait de test
+  type: http
+  seq: 7
+}
+
+post {
+  url: {{baseUrl}}/admin/plans
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{adminToken}}
+}
+
+body:json {
+  {
+    "code": "TEST_{{runId}}",
+    "name": "Forfait de test",
+    "priceMonthly": 10000,
+    "priceYearly": 100000,
+    "maxRestaurants": 1,
+    "maxTables": 5,
+    "maxMembers": 2,
+    "features": [
+      "online_payments"
+    ],
+    "isActive": false
+  }
+}
+
+tests {
+  test("Statut 201", function () {
+    expect(res.getStatus()).to.equal(201);
+  });
+}
+
+docs {
+  Créé inactif : il n’apparaît pas dans la grille publique.
+}

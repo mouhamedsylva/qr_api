@@ -1,0 +1,31 @@
+meta {
+  name: Créer une zone
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{baseUrl}}/restaurants/{{restaurantId}}/zones
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{ownerToken}}
+}
+
+body:json {
+  {
+    "name": "Terrasse"
+  }
+}
+
+script:post-response {
+  bru.setVar("zoneId", res.getBody().id);
+}
+
+tests {
+  test("Statut 201", function () {
+    expect(res.getStatus()).to.equal(201);
+  });
+}

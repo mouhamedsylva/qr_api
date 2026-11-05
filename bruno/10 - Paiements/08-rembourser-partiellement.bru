@@ -1,0 +1,28 @@
+meta {
+  name: Rembourser partiellement
+  type: http
+  seq: 8
+}
+
+post {
+  url: {{baseUrl}}/restaurants/{{restaurantId}}/payments/{{cashPaymentId}}/refunds
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{ownerToken}}
+}
+
+body:json {
+  {
+    "amount": 1000,
+    "reason": "Plat arrivé froid"
+  }
+}
+
+tests {
+  test("Statut 201", function () {
+    expect(res.getStatus()).to.equal(201);
+  });
+}

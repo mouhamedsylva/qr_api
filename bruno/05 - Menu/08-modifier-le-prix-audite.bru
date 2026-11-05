@@ -1,0 +1,28 @@
+meta {
+  name: Modifier le prix (audité)
+  type: http
+  seq: 8
+}
+
+patch {
+  url: {{baseUrl}}/restaurants/{{restaurantId}}/menu/items/{{itemThieb}}
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{ownerToken}}
+}
+
+body:json {
+  {
+    "priceAmount": 3500,
+    "description": "Riz au poisson, recette de la maison"
+  }
+}
+
+tests {
+  test("Statut 200", function () {
+    expect(res.getStatus()).to.equal(200);
+  });
+}

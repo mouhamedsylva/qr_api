@@ -1,0 +1,25 @@
+meta {
+  name: Reçu numérique
+  type: http
+  seq: 2
+}
+
+get {
+  url: {{baseUrl}}/public/orders/{{orderId}}/receipt
+  body: none
+  auth: none
+}
+
+headers {
+  X-Order-Token: {{trackingToken}}
+}
+
+tests {
+  test("Statut 200", function () {
+    expect(res.getStatus()).to.equal(200);
+  });
+
+  test("Numéro séquentiel", function () {
+    expect(res.getBody().receiptNumber).to.match(/^R-\d{6}$/);
+  });
+}

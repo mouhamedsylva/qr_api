@@ -1,0 +1,28 @@
+meta {
+  name: Staff : remboursement interdit
+  type: http
+  seq: 9
+}
+
+post {
+  url: {{baseUrl}}/restaurants/{{restaurantId}}/payments/{{cashPaymentId}}/refunds
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{staffToken}}
+}
+
+body:json {
+  {
+    "amount": 100,
+    "reason": "Test"
+  }
+}
+
+tests {
+  test("Statut 403", function () {
+    expect(res.getStatus()).to.equal(403);
+  });
+}

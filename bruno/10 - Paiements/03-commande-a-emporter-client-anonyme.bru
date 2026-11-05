@@ -1,0 +1,48 @@
+meta {
+  name: Commande à emporter (client anonyme)
+  type: http
+  seq: 3
+}
+
+post {
+  url: {{baseUrl}}/public/orders
+  body: json
+  auth: none
+}
+
+headers {
+  Idempotency-Key: {{idemKey}}
+}
+
+body:json {
+  {
+    "mode": "TAKEAWAY",
+    "restaurantSlug": "{{restaurantSlug}}",
+    "customerName": "Ibrahima",
+    "customerPhone": "+221770000001",
+    "items": [
+      {
+        "menuItemId": "{{itemThieb}}",
+        "quantity": 1,
+        "optionIds": [
+          "{{optGrande}}"
+        ]
+      }
+    ]
+  }
+}
+
+script:pre-request {
+  bru.setVar("idemKey", "k" + Date.now() + Math.random().toString(36).slice(2, 10));
+}
+
+script:post-response {
+  bru.setVar("order2Id", res.getBody().order.id);
+  bru.setVar("tracking2", res.getBody().trackingToken);
+}
+
+tests {
+  test("Statut 201", function () {
+    expect(res.getStatus()).to.equal(201);
+  });
+}

@@ -1,0 +1,25 @@
+meta {
+  name: Mes points de fidélité
+  type: http
+  seq: 6
+}
+
+get {
+  url: {{baseUrl}}/me/loyalty
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{customerToken}}
+}
+
+tests {
+  test("Statut 200", function () {
+    expect(res.getStatus()).to.equal(200);
+  });
+
+  test("Points crédités au paiement", function () {
+    expect(res.getBody()[0].points).to.be.above(29);
+  });
+}

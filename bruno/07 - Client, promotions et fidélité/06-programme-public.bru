@@ -1,0 +1,21 @@
+meta {
+  name: Programme public
+  type: http
+  seq: 6
+}
+
+get {
+  url: {{baseUrl}}/public/restaurants/{{restaurantSlug}}/loyalty
+  body: none
+  auth: none
+}
+
+tests {
+  test("Statut 200", function () {
+    expect(res.getStatus()).to.equal(200);
+  });
+
+  test("Actif", function () {
+    expect(res.getBody().active).to.equal(true);
+  });
+}

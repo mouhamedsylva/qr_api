@@ -1,0 +1,40 @@
+meta {
+  name: Créer une clé d’API
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{baseUrl}}/restaurants/{{restaurantId}}/integrations/api-keys
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{ownerToken}}
+}
+
+body:json {
+  {
+    "name": "Caisse",
+    "scopes": [
+      "menu:read",
+      "orders:read",
+      "orders:write"
+    ]
+  }
+}
+
+script:post-response {
+  bru.setVar("apiKey", res.getBody().key);
+}
+
+tests {
+  test("Statut 201", function () {
+    expect(res.getStatus()).to.equal(201);
+  });
+}
+
+docs {
+  La clé complète n’est affichée qu’ici.
+}

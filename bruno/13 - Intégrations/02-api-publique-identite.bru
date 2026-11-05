@@ -1,0 +1,25 @@
+meta {
+  name: API publique · identité
+  type: http
+  seq: 2
+}
+
+get {
+  url: {{baseUrl}}/integrations/me
+  body: none
+  auth: none
+}
+
+headers {
+  X-Api-Key: {{apiKey}}
+}
+
+tests {
+  test("Statut 200", function () {
+    expect(res.getStatus()).to.equal(200);
+  });
+
+  test("Quota annoncé", function () {
+    expect(res.getHeader("x-ratelimit-limit")).to.equal("120");
+  });
+}

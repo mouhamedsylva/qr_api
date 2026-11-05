@@ -1,0 +1,26 @@
+meta {
+  name: Lister les membres
+  type: http
+  seq: 5
+}
+
+get {
+  url: {{baseUrl}}/restaurants/{{restaurantId}}/team/members
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{ownerToken}}
+}
+
+script:post-response {
+  const staff = res.getBody().find((m) => m.role === "STAFF");
+  bru.setVar("staffMembershipId", staff.id);
+}
+
+tests {
+  test("Statut 200", function () {
+    expect(res.getStatus()).to.equal(200);
+  });
+}

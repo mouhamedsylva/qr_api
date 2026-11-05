@@ -1,0 +1,25 @@
+meta {
+  name: Tester le webhook
+  type: http
+  seq: 7
+}
+
+post {
+  url: {{baseUrl}}/restaurants/{{restaurantId}}/integrations/webhooks/{{webhookId}}/test
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{ownerToken}}
+}
+
+tests {
+  test("Statut 200", function () {
+    expect(res.getStatus()).to.equal(200);
+  });
+
+  test("Tentative enregistrée", function () {
+    expect(res.getBody().attempts).to.equal(1);
+  });
+}

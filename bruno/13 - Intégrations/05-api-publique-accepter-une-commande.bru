@@ -1,0 +1,27 @@
+meta {
+  name: API publique · accepter une commande
+  type: http
+  seq: 5
+}
+
+patch {
+  url: {{baseUrl}}/integrations/orders/{{staffOrderId}}/status
+  body: json
+  auth: none
+}
+
+headers {
+  X-Api-Key: {{apiKey}}
+}
+
+body:json {
+  {
+    "status": "ACCEPTED"
+  }
+}
+
+tests {
+  test("Statut 200", function () {
+    expect(res.getStatus()).to.equal(200);
+  });
+}

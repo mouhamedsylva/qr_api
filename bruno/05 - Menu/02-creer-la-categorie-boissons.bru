@@ -1,0 +1,31 @@
+meta {
+  name: Créer la catégorie Boissons
+  type: http
+  seq: 2
+}
+
+post {
+  url: {{baseUrl}}/restaurants/{{restaurantId}}/menu/categories
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{ownerToken}}
+}
+
+body:json {
+  {
+    "name": "Boissons"
+  }
+}
+
+script:post-response {
+  bru.setVar("catBoissons", res.getBody().id);
+}
+
+tests {
+  test("Statut 201", function () {
+    expect(res.getStatus()).to.equal(201);
+  });
+}

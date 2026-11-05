@@ -1,0 +1,39 @@
+meta {
+  name: Créer 5 tables (lot)
+  type: http
+  seq: 2
+}
+
+post {
+  url: {{baseUrl}}/restaurants/{{restaurantId}}/tables/bulk
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{ownerToken}}
+}
+
+body:json {
+  {
+    "prefix": "T",
+    "from": 1,
+    "to": 5,
+    "zoneId": "{{zoneId}}",
+    "capacity": 4
+  }
+}
+
+script:post-response {
+  bru.setVar("tableId", res.getBody()[0].id);
+}
+
+tests {
+  test("Statut 201", function () {
+    expect(res.getStatus()).to.equal(201);
+  });
+
+  test("T1 à T5", function () {
+    expect(res.getBody().map((t) => t.label)).to.eql(["T1", "T2", "T3", "T4", "T5"]);
+  });
+}

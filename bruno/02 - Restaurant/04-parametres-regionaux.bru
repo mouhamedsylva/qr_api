@@ -1,0 +1,29 @@
+meta {
+  name: Paramètres régionaux
+  type: http
+  seq: 4
+}
+
+patch {
+  url: {{baseUrl}}/restaurants/{{restaurantId}}/regional
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{ownerToken}}
+}
+
+body:json {
+  {
+    "currency": "XOF",
+    "locale": "fr-SN",
+    "timezone": "Africa/Dakar"
+  }
+}
+
+tests {
+  test("Statut 200", function () {
+    expect(res.getStatus()).to.equal(200);
+  });
+}

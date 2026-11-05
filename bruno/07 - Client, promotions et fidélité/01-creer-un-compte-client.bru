@@ -1,0 +1,31 @@
+meta {
+  name: Créer un compte client
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{baseUrl}}/auth/customers/register
+  body: json
+  auth: none
+}
+
+body:json {
+  {
+    "email": "{{customerEmail}}",
+    "password": "{{password}}",
+    "firstName": "Ndeye",
+    "lastName": "Sow",
+    "acceptTerms": true
+  }
+}
+
+script:post-response {
+  bru.setVar("customerToken", res.getBody().tokens.accessToken);
+}
+
+tests {
+  test("Statut 201", function () {
+    expect(res.getStatus()).to.equal(201);
+  });
+}

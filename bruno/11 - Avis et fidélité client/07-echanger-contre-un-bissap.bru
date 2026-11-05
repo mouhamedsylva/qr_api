@@ -1,0 +1,29 @@
+meta {
+  name: Échanger contre un bissap
+  type: http
+  seq: 7
+}
+
+post {
+  url: {{baseUrl}}/me/loyalty/{{restaurantId}}/rewards/{{rewardId}}/redeem
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{customerToken}}
+}
+
+script:post-response {
+  bru.setVar("voucherCode", res.getBody().code);
+}
+
+tests {
+  test("Statut 201", function () {
+    expect(res.getStatus()).to.equal(201);
+  });
+
+  test("Bon nominatif", function () {
+    expect(res.getBody().code).to.match(/^FID-/);
+  });
+}

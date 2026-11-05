@@ -1,0 +1,21 @@
+meta {
+  name: Journal d’audit global
+  type: http
+  seq: 8
+}
+
+get {
+  url: {{baseUrl}}/admin/audit-logs?action=admin.
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{adminToken}}
+}
+
+tests {
+  test("Statut 200", function () {
+    expect(res.getStatus()).to.equal(200);
+  });
+}

@@ -1,0 +1,61 @@
+meta {
+  name: Créer un plat avec options
+  type: http
+  seq: 4
+}
+
+post {
+  url: {{baseUrl}}/restaurants/{{restaurantId}}/menu/items
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{ownerToken}}
+}
+
+body:json {
+  {
+    "categoryId": "{{catPlats}}",
+    "name": "Thiéboudienne",
+    "description": "Riz au poisson",
+    "priceAmount": 3500,
+    "costAmount": 1500,
+    "prepTimeMinutes": 20,
+    "dietaryTags": [
+      "HALAL"
+    ],
+    "optionGroups": [
+      {
+        "name": "Taille",
+        "isRequired": true,
+        "options": [
+          {
+            "name": "Normale"
+          },
+          {
+            "name": "Grande",
+            "priceDelta": 1000
+          }
+        ]
+      }
+    ]
+  }
+}
+
+script:post-response {
+  const b = res.getBody();
+  bru.setVar("itemThieb", b.id);
+  bru.setVar("optNormale", b.optionGroups[0].options[0].id);
+  bru.setVar("optGrande", b.optionGroups[0].options[1].id);
+}
+
+tests {
+  test("Statut 201", function () {
+    expect(res.getStatus()).to.equal(201);
+  });
+
+  test("Groupe obligatoire : 1 choix minimum", function () {
+    expect(res.getBody().optionGroups[0].minSelect).to.equal(1);
+  });
+}

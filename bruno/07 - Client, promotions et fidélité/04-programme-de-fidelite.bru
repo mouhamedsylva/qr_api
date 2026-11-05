@@ -1,0 +1,34 @@
+meta {
+  name: Programme de fidélité
+  type: http
+  seq: 4
+}
+
+put {
+  url: {{baseUrl}}/restaurants/{{restaurantId}}/loyalty
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{ownerToken}}
+}
+
+body:json {
+  {
+    "isActive": true,
+    "pointsPerUnit": 1,
+    "unitAmount": 100,
+    "expiryDays": 180
+  }
+}
+
+tests {
+  test("Statut 200", function () {
+    expect(res.getStatus()).to.equal(200);
+  });
+}
+
+docs {
+  1 point par tranche de 100 XOF ; points perdus après 180 jours sans activité.
+}

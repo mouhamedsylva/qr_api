@@ -1,0 +1,21 @@
+meta {
+  name: Menu public
+  type: http
+  seq: 12
+}
+
+get {
+  url: {{baseUrl}}/public/restaurants/{{restaurantSlug}}/menu
+  body: none
+  auth: none
+}
+
+tests {
+  test("Statut 200", function () {
+    expect(res.getStatus()).to.equal(200);
+  });
+
+  test("Pas de coût de revient exposé", function () {
+    expect(JSON.stringify(res.getBody())).to.not.include("costAmount");
+  });
+}

@@ -1,0 +1,23 @@
+meta {
+  name: Mot de passe oublié
+  type: http
+  seq: 3
+}
+
+post {
+  url: {{baseUrl}}/auth/password/forgot
+  body: json
+  auth: none
+}
+
+body:json {
+  {
+    "email": "{{ownerEmail}}"
+  }
+}
+
+tests {
+  test("Statut 200", function () {
+    expect(res.getStatus()).to.equal(200);
+  });
+}

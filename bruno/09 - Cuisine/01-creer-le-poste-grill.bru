@@ -1,0 +1,32 @@
+meta {
+  name: Créer le poste Grill
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{baseUrl}}/restaurants/{{restaurantId}}/kitchen/stations
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{ownerToken}}
+}
+
+body:json {
+  {
+    "name": "Grill",
+    "color": "#E4572E"
+  }
+}
+
+script:post-response {
+  bru.setVar("stationId", res.getBody().id);
+}
+
+tests {
+  test("Statut 201", function () {
+    expect(res.getStatus()).to.equal(201);
+  });
+}

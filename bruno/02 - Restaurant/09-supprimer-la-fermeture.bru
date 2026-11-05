@@ -1,0 +1,21 @@
+meta {
+  name: Supprimer la fermeture
+  type: http
+  seq: 9
+}
+
+delete {
+  url: {{baseUrl}}/restaurants/{{restaurantId}}/closures/{{closureId}}
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{ownerToken}}
+}
+
+tests {
+  test("Statut 204", function () {
+    expect(res.getStatus()).to.equal(204);
+  });
+}

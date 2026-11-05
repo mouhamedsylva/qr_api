@@ -1,0 +1,25 @@
+meta {
+  name: Commander à nouveau
+  type: http
+  seq: 9
+}
+
+post {
+  url: {{baseUrl}}/me/orders/{{orderId}}/reorder
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{customerToken}}
+}
+
+tests {
+  test("Statut 201", function () {
+    expect(res.getStatus()).to.equal(201);
+  });
+
+  test("Panier reconstruit", function () {
+    expect(res.getBody().items.length).to.be.above(0);
+  });
+}

@@ -1,0 +1,31 @@
+meta {
+  name: Lien déjà utilisé
+  type: http
+  seq: 4
+}
+
+post {
+  url: {{baseUrl}}/invitations/{{inviteToken}}/register
+  body: json
+  auth: none
+}
+
+body:json {
+  {
+    "firstName": "X",
+    "lastName": "Y",
+    "password": "{{password}}",
+    "acceptTerms": true,
+    "email": "x{{runId}}@qrorder.test"
+  }
+}
+
+tests {
+  test("Statut 404", function () {
+    expect(res.getStatus()).to.equal(404);
+  });
+
+  test("Invitation consommée", function () {
+    expect(res.getBody().code).to.equal("INVITATION_INVALID");
+  });
+}

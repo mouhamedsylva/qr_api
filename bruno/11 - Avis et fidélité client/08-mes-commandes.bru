@@ -1,0 +1,21 @@
+meta {
+  name: Mes commandes
+  type: http
+  seq: 8
+}
+
+get {
+  url: {{baseUrl}}/me/orders
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{customerToken}}
+}
+
+tests {
+  test("Statut 200", function () {
+    expect(res.getStatus()).to.equal(200);
+  });
+}

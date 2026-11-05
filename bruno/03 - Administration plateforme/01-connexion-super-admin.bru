@@ -1,0 +1,42 @@
+meta {
+  name: Connexion super-admin
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{baseUrl}}/auth/login
+  body: json
+  auth: none
+}
+
+body:json {
+  {
+    "email": "{{adminEmail}}",
+    "password": "{{adminPassword}}"
+  }
+}
+
+script:post-response {
+  if (res.getStatus() === 200) bru.setVar("adminToken", res.getBody().tokens.accessToken);
+}
+
+tests {
+  test("Statut 200", function () {
+    expect(res.getStatus()).to.equal(200);
+  });
+
+  test("Variable adminPassword renseignée dans l’environnement", function () {
+    const pw = bru.getEnvVar("adminPassword");
+    expect(pw, "Renseignez adminPassword : Environnements > Local > valeur de la variable secrète, puis Save").to.be.a("string").and.not.be.empty;
+  });
+
+  test("Compte super-admin", function () {
+    expect(res.getBody().user.isSuperAdmin).to.equal(true);
+  });
+}
+
+docs {
+  Prérequis : créer le super-admin une fois (voir README) et renseigner la variable secrète adminPassword dans l’environnement Local.
+  Si cette requête échoue, toutes les étapes Premium (cuisine, intégrations, administration) échouent en cascade.
+}

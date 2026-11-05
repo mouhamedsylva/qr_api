@@ -1,0 +1,27 @@
+meta {
+  name: Simulateur : l’opérateur confirme
+  type: http
+  seq: 5
+}
+
+post {
+  url: {{baseUrl}}/public/payments/{{mmPaymentId}}/sandbox
+  body: json
+  auth: none
+}
+
+body:json {
+  {
+    "outcome": "SUCCEEDED"
+  }
+}
+
+tests {
+  test("Statut 200", function () {
+    expect(res.getStatus()).to.equal(200);
+  });
+}
+
+docs {
+  Simule la notification de l’agrégateur (dev uniquement).
+}

@@ -1,0 +1,40 @@
+meta {
+  name: Rafraîchir le jeton (rotation)
+  type: http
+  seq: 5
+}
+
+post {
+  url: {{baseUrl}}/auth/refresh
+  body: json
+  auth: none
+}
+
+body:json {
+  {
+    "refreshToken": "{{ownerRefresh}}"
+  }
+}
+
+script:pre-request {
+  bru.setVar("oldRefresh", bru.getVar("ownerRefresh"));
+}
+
+script:post-response {
+  bru.setVar("ownerToken", res.getBody().accessToken);
+  bru.setVar("ownerRefresh", res.getBody().refreshToken);
+}
+
+tests {
+  test("Statut 200", function () {
+    expect(res.getStatus()).to.equal(200);
+  });
+
+  test("Nouveau refresh token", function () {
+    expect(res.getBody().refreshToken).to.not.equal(bru.getVar("oldRefresh"));
+  });
+}
+
+docs {
+  AUT-04 : chaque refresh renvoie un nouveau couple de jetons.
+}

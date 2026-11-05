@@ -1,0 +1,21 @@
+meta {
+  name: Exporter mes données
+  type: http
+  seq: 1
+}
+
+get {
+  url: {{baseUrl}}/auth/me/export
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{ownerToken}}
+}
+
+tests {
+  test("Statut 200", function () {
+    expect(res.getStatus()).to.equal(200);
+  });
+}

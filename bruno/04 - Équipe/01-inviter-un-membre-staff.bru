@@ -1,0 +1,37 @@
+meta {
+  name: Inviter un membre (staff)
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{baseUrl}}/restaurants/{{restaurantId}}/team/invitations
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{ownerToken}}
+}
+
+body:json {
+  {
+    "email": "{{staffEmail}}",
+    "role": "STAFF",
+    "staffProfile": "SALLE"
+  }
+}
+
+script:post-response {
+  bru.setVar("inviteToken", res.getBody().inviteUrl.split("/invitation/")[1]);
+}
+
+tests {
+  test("Statut 201", function () {
+    expect(res.getStatus()).to.equal(201);
+  });
+
+  test("Lien d’invitation renvoyé", function () {
+    expect(res.getBody().inviteUrl).to.include("/invitation/");
+  });
+}

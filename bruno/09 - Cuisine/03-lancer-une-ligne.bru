@@ -1,0 +1,31 @@
+meta {
+  name: Lancer une ligne
+  type: http
+  seq: 3
+}
+
+patch {
+  url: {{baseUrl}}/restaurants/{{restaurantId}}/kitchen/items/{{orderItemId}}
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{staffToken}}
+}
+
+body:json {
+  {
+    "status": "IN_PROGRESS"
+  }
+}
+
+tests {
+  test("Statut 200", function () {
+    expect(res.getStatus()).to.equal(200);
+  });
+
+  test("Commande en préparation", function () {
+    expect(res.getBody().status).to.equal("PREPARING");
+  });
+}

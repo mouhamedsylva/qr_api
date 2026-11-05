@@ -1,0 +1,64 @@
+meta {
+  name: Commande client à table
+  type: http
+  seq: 2
+}
+
+post {
+  url: {{baseUrl}}/public/orders
+  body: json
+  auth: bearer
+}
+
+headers {
+  Idempotency-Key: {{idemKey}}
+}
+
+auth:bearer {
+  token: {{customerToken}}
+}
+
+body:json {
+  {
+    "mode": "DINE_IN",
+    "qrToken": "{{qrToken}}",
+    "promoCode": "{{promoCode}}",
+    "notes": "Sans piment",
+    "items": [
+      {
+        "menuItemId": "{{itemThieb}}",
+        "quantity": 2,
+        "optionIds": [
+          "{{optNormale}}"
+        ],
+        "notes": "Bien cuit"
+      }
+    ]
+  }
+}
+
+script:pre-request {
+  bru.setVar("idemKey", "k" + Date.now() + Math.random().toString(36).slice(2, 10));
+}
+
+script:post-response {
+  bru.setVar("orderId", res.getBody().order.id);
+  bru.setVar("trackingToken", res.getBody().trackingToken);
+  bru.setVar("orderIdemKey", bru.getVar("idemKey"));
+}
+
+tests {
+  test("Statut 201", function () {
+    expect(res.getStatus()).to.equal(201);
+  });
+
+  test("En attente, table T1", function () {
+    expect(res.getBody().order.status).to.equal("PENDING");
+    expect(res.getBody().order.table.label).to.equal("T1");
+  });
+}
+
+docs {
+  Connecté (jeton client facultatif) : la commande est rattachée au compte et rapportera des points.
+  Idempotency-Key généré automatiquement.
+}
