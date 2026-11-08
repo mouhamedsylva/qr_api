@@ -160,7 +160,8 @@ export class CreateMenuItemDto {
 
   @IsOptional()
   @ArrayMaxSize(10)
-  @IsUrl({}, { each: true })
+  // Sans exigence de domaine de premier niveau : photos servies par l'API en local (http://localhost:3000/uploads/…).
+  @IsUrl({ require_tld: false, protocols: ['http', 'https'] }, { each: true })
   images?: string[];
 
   @IsOptional()

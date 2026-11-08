@@ -16,6 +16,7 @@ import { validateEnv } from './config/env.validation';
 import { HealthController } from './health/health.controller';
 import { PrismaModule } from './prisma/prisma.module';
 import { MenuModule } from './menu/menu.module';
+import { StorageModule } from './storage/storage.module';
 import { RestaurantsModule } from './restaurants/restaurants.module';
 import { TablesModule } from './tables/tables.module';
 import { OrdersModule } from './orders/orders.module';
@@ -62,6 +63,7 @@ import { RealtimeModule } from './realtime/realtime.module';
       skipIf: () => process.env.NODE_ENV === 'test',
     }),
     PrismaModule,
+    StorageModule,
     RedisModule,
     AuditModule,
     NotificationsModule,

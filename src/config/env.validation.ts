@@ -74,6 +74,15 @@ export class EnvironmentVariables {
   @IsString()
   LOG_LEVEL: string = 'info';
 
+  /** Dossier des fichiers envoyés (photos des plats), servi sous /uploads. */
+  @IsString()
+  UPLOADS_DIR: string = 'uploads';
+
+  /** Adresse publique de l'API, pour construire l'URL des fichiers ; par défaut http://localhost:PORT. */
+  @IsOptional()
+  @IsUrl({ require_tld: false })
+  PUBLIC_API_URL?: string;
+
   @IsOptional()
   @IsString()
   STRIPE_SECRET_KEY?: string;

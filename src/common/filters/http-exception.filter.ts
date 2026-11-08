@@ -52,6 +52,14 @@ export class AllExceptionsFilter implements ExceptionFilter {
       const statusCode = exception.getStatus();
       const response = exception.getResponse();
       const defaultCode = STATUS_CODES[statusCode] ?? 'ERROR';
+      // Limite de taille de multer (envoi de fichiers) : message en français.
+      if (statusCode === 413) {
+        return {
+          statusCode,
+          code: 'FILE_TOO_LARGE',
+          message: 'Fichier trop volumineux (10 Mo maximum)',
+        };
+      }
       if (typeof response === 'string') {
         return { statusCode, code: defaultCode, message: response };
       }

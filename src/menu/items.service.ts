@@ -11,6 +11,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { assertStation } from './station.util';
 import { RealtimeEvents } from '../realtime/realtime.events';
 import { RealtimeService } from '../realtime/realtime.service';
+import { StorageService } from '../storage/storage.service';
 import { isItemAvailable } from './availability';
 import {
   CreateMenuItemDto,
@@ -46,6 +47,7 @@ export class ItemsService {
     private readonly prisma: PrismaService,
     private readonly audit: AuditService,
     private readonly realtime: RealtimeService,
+    private readonly storage: StorageService,
   ) {}
 
   async list(restaurantId: string, query: ListMenuItemsQueryDto) {
@@ -153,7 +155,42 @@ export class ItemsService {
         userAgent: actor.userAgent,
       });
     }
+    if (dto.images) {
+      await this.removeOrphanImages(
+        restaurantId,
+        before.images,
+        updated.images,
+      );
+    }
     return withAvailability(updated);
+  }
+
+  /**
+   * Photos retirées d'un article : supprimées du stockage si elles en viennent
+   * et qu'aucun autre article de l'établissement ne les utilise.
+   */
+  private async removeOrphanImages(
+    restaurantId: string,
+    before: unknown,
+    after: unknown,
+  ) {
+    const kept = new Set(Array.isArray(after) ? (after as string[]) : []);
+    const dropped = (Array.isArray(before) ? (before as string[]) : []).filter(
+      (url) => !kept.has(url) && this.storage.owns(url),
+    );
+    if (!dropped.length) return;
+    const others = await this.prisma.menuItem.findMany({
+      where: { restaurantId },
+      select: { images: true },
+    });
+    const used = new Set(
+      others.flatMap((o) =>
+        Array.isArray(o.images) ? (o.images as string[]) : [],
+      ),
+    );
+    for (const url of dropped) {
+      if (!used.has(url)) await this.storage.remove(url);
+    }
   }
 
   /** Épuisé / disponible instantanément, stock limité (MEN-04). */
