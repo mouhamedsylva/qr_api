@@ -72,9 +72,14 @@ export class PublicMenuService {
     ]);
 
     const now = new Date();
+    // Colonnes JSON facultatives : toujours des listes pour le client.
+    const list = (v: unknown) => (Array.isArray(v) ? (v as string[]) : []);
     const publicItems = items.map(
       ({ isAvailable, availableAgainAt, stockQuantity, ...item }) => ({
         ...item,
+        images: list(item.images),
+        allergens: list(item.allergens),
+        dietaryTags: list(item.dietaryTags),
         available: isItemAvailable(
           { isAvailable, availableAgainAt, stockQuantity },
           now,

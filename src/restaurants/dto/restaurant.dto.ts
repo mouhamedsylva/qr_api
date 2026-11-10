@@ -138,15 +138,17 @@ export class UpdateProfileDto {
 
 /** Réglages visuels (RES-02). */
 export class UpdateBrandingDto {
+  /** null : retire le logo. Domaine sans TLD accepté (images servies par l'API en local). */
   @IsOptional()
-  @IsUrl()
+  @IsUrl({ require_tld: false, protocols: ['http', 'https'] })
   @MaxLength(500)
-  logoUrl?: string;
+  logoUrl?: string | null;
 
+  /** null : retire la bannière. */
   @IsOptional()
-  @IsUrl()
+  @IsUrl({ require_tld: false, protocols: ['http', 'https'] })
   @MaxLength(500)
-  bannerUrl?: string;
+  bannerUrl?: string | null;
 
   @IsOptional()
   @ValidateNested()

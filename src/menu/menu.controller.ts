@@ -23,6 +23,7 @@ import { ReorderDto } from '../common/dto/reorder.dto';
 import type { Actor, AuthUser } from '../common/types/request-context';
 import { CategoriesService } from './categories.service';
 import {
+  BulkItemsDto,
   CreateCategoryDto,
   CreateMenuItemDto,
   ListMenuItemsQueryDto,
@@ -132,6 +133,18 @@ export class MenuController {
     @Param('itemId', ParseUUIDPipe) id: string,
   ) {
     return this.items.findOne(restaurantId, id);
+  }
+
+  /** Masquer, afficher ou supprimer plusieurs articles en une fois. */
+  @Post('items/bulk')
+  @HttpCode(HttpStatus.OK)
+  @RequirePermissions('menu.manage')
+  @Audit('menu.item_bulk', 'MenuItem')
+  bulkItems(
+    @Param('restaurantId') restaurantId: string,
+    @Body() dto: BulkItemsDto,
+  ) {
+    return this.items.bulk(restaurantId, dto.ids, dto.action);
   }
 
   @Patch('items/:itemId')

@@ -2,6 +2,7 @@ import { OmitType, PartialType } from '@nestjs/swagger';
 import { Transform, Type } from 'class-transformer';
 import {
   ArrayMaxSize,
+  ArrayMinSize,
   ArrayUnique,
   IsBoolean,
   IsDateString,
@@ -241,6 +242,21 @@ export class ListMenuItemsQueryDto extends PaginationQueryDto {
   )
   @IsBoolean()
   isActive?: boolean;
+}
+
+export const BULK_ITEM_ACTIONS = ['hide', 'show', 'delete'] as const;
+export type BulkItemAction = (typeof BULK_ITEM_ACTIONS)[number];
+
+/** Action groupée sur une sélection d'articles : masquer, afficher ou supprimer. */
+export class BulkItemsDto {
+  @IsIn(BULK_ITEM_ACTIONS)
+  action: BulkItemAction;
+
+  @ArrayMinSize(1)
+  @ArrayMaxSize(500)
+  @ArrayUnique()
+  @IsUUID('4', { each: true })
+  ids: string[];
 }
 
 export class ReorderItemsDto {

@@ -14,6 +14,7 @@ import { RealtimeService } from '../realtime/realtime.service';
 import { StorageService } from '../storage/storage.service';
 import { isItemAvailable } from './availability';
 import {
+  BulkItemAction,
   CreateMenuItemDto,
   ListMenuItemsQueryDto,
   OptionGroupDto,
@@ -240,6 +241,21 @@ export class ItemsService {
       where: { id },
       data: { deletedAt: new Date() },
     });
+  }
+
+  /**
+   * Action groupée (sélection dans le back-office). Seuls les articles de
+   * l'établissement non supprimés sont touchés ; renvoie le nombre modifié.
+   * Suppression logique, comme pour un article seul.
+   */
+  async bulk(restaurantId: string, ids: string[], action: BulkItemAction) {
+    const where = { id: { in: ids }, restaurantId, deletedAt: null };
+    const data =
+      action === 'delete'
+        ? { deletedAt: new Date() }
+        : { isActive: action === 'show' };
+    const { count } = await this.prisma.menuItem.updateMany({ where, data });
+    return { count };
   }
 
   /** Réordonne les articles d'une catégorie (MEN-05). */

@@ -14,6 +14,7 @@ import {
   resolvePermissions,
 } from '../auth/rbac/permissions';
 import { PrismaService } from '../prisma/prisma.service';
+import { StorageService } from '../storage/storage.service';
 import {
   CreateClosureDto,
   CreateRestaurantDto,
@@ -59,6 +60,7 @@ export class RestaurantsService {
     private readonly prisma: PrismaService,
     private readonly audit: AuditService,
     private readonly billing: BillingService,
+    private readonly storage: StorageService,
   ) {}
 
   /** Crée un établissement, son OWNER et ses horaires par défaut (dans une transaction). */
@@ -192,6 +194,13 @@ export class RestaurantsService {
       if (JSON.stringify(prev) !== JSON.stringify(next)) {
         changedBefore[key] = prev;
         changedAfter[key] = next;
+      }
+    }
+    // Logo ou bannière remplacé(e) ou retiré(e) : l'ancien fichier envoyé est supprimé.
+    for (const key of ['logoUrl', 'bannerUrl'] as const) {
+      const prev = before[key];
+      if (key in changedAfter && prev && this.storage.owns(prev)) {
+        await this.storage.remove(prev);
       }
     }
     if (Object.keys(changedAfter).length) {
