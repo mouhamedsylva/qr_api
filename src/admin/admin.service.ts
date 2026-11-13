@@ -67,7 +67,10 @@ export class AdminService {
                   status: true,
                   trialEndsAt: true,
                   currentPeriodEnd: true,
+                  requestedAt: true,
+                  requestedCycle: true,
                   plan: { select: { code: true } },
+                  requestedPlan: { select: { code: true, name: true } },
                 },
               },
             },
@@ -116,6 +119,39 @@ export class AdminService {
       userAgent: actor.userAgent,
     });
     return updated;
+  }
+
+  /**
+   * Suppression d'un restaurant par un super-admin (ADM-02). Suppression
+   * logique, comme celle faite par le propriétaire : le restaurant n'est plus
+   * accessible (menu, QR codes, back-office), ses commandes et paiements restent
+   * dans l'historique. Le motif est conservé dans le journal d'audit.
+   */
+  async deleteRestaurant(id: string, reason: string, actor: Actor) {
+    const restaurant = await this.prisma.restaurant.findFirst({
+      where: { id, deletedAt: null },
+      select: { id: true, name: true, slug: true, status: true, ownerId: true },
+    });
+    if (!restaurant) throw new NotFoundException('Restaurant introuvable');
+    await this.prisma.restaurant.update({
+      where: { id },
+      data: { deletedAt: new Date() },
+    });
+    await this.audit.log({
+      action: 'admin.restaurant_delete',
+      entity: 'Restaurant',
+      entityId: id,
+      restaurantId: id,
+      actorId: actor.id,
+      before: {
+        name: restaurant.name,
+        slug: restaurant.slug,
+        status: restaurant.status,
+      },
+      after: { deleted: true, reason },
+      ip: actor.ip,
+      userAgent: actor.userAgent,
+    });
   }
 
   /** Suspension d'un compte : ses sessions sont fermées immédiatement. */

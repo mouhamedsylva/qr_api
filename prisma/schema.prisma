@@ -704,6 +704,7 @@ model Plan {
   updatedAt      DateTime @updatedAt
 
   subscriptions Subscription[]
+  requestedBy   Subscription[] @relation("RequestedPlan")
 
   @@map("plans")
 }
@@ -721,14 +722,32 @@ model Subscription {
   graceUntil         DateTime? // période de grâce en cas d'impayé
   cancelAtPeriodEnd  Boolean            @default(false)
   lastNotice         String?            @db.VarChar(30) // dernière relance envoyée (PAY-12), pour ne pas la répéter
+  // Forfait choisi par le propriétaire hors période d'essai, en attente d'activation par l'administration.
+  requestedPlanId    String?            @db.Char(36)
+  requestedCycle     BillingCycle?
+  requestedAt        DateTime?
   createdAt          DateTime           @default(now())
   updatedAt          DateTime           @updatedAt
 
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-  plan Plan @relation(fields: [planId], references: [id])
+  user          User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  plan          Plan  @relation(fields: [planId], references: [id])
+  requestedPlan Plan? @relation("RequestedPlan", fields: [requestedPlanId], references: [id])
 
   @@index([status])
   @@map("subscriptions")
+}
+
+/// Réglages de la plateforme, modifiables par les super-admins (une seule ligne, id = 1).
+model PlatformSettings {
+  id                Int      @id @default(1)
+  /// Durée de l'essai offert à l'inscription d'un propriétaire (0 = pas d'essai).
+  trialDays         Int      @default(14)
+  /// Rappel envoyé N jours avant la fin de l'essai.
+  trialReminderDays Int      @default(3)
+  updatedById       String?  @db.Char(36)
+  updatedAt         DateTime @updatedAt
+
+  @@map("platform_settings")
 }
 
 // ──────────────────────── Expérience client (module 10) ────────────────────────

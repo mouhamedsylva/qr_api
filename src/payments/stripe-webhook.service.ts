@@ -1,4 +1,5 @@
 import {
+  BadGatewayException,
   BadRequestException,
   ConflictException,
   Inject,
@@ -11,6 +12,11 @@ import { Prisma } from '@prisma/client';
 import Stripe from 'stripe';
 import { PrismaService } from '../prisma/prisma.service';
 import { STRIPE_CLIENT, toGatewayStatus } from './gateways/stripe.gateway';
+import {
+  connectAccountParams,
+  connectMode,
+  isConnectReady,
+} from './stripe-connect.util';
 import { PaymentsService } from './payments.service';
 
 const PAYMENT_INTENT_EVENTS = [
@@ -126,9 +132,25 @@ export class StripeWebhookService {
       const account = event.data.object;
       await this.prisma.restaurant.updateMany({
         where: { stripeAccountId: account.id },
-        data: { stripeChargesEnabled: account.charges_enabled === true },
+        data: { stripeChargesEnabled: isConnectReady(account) },
       });
     }
+  }
+
+  /**
+   * Erreur renvoyée par Stripe (pays non pris en charge, Connect non activé,
+   * données refusées…) → message lisible au lieu d'une erreur 500.
+   */
+  private connectError(err: unknown): never {
+    if (err instanceof Stripe.errors.StripeError) {
+      this.logger.warn(`Stripe Connect : ${err.type} · ${err.message}`);
+      const isInput = err.type === 'StripeInvalidRequestError';
+      const message = `Stripe a refusé la demande : ${err.message}`;
+      throw isInput
+        ? new BadRequestException({ code: 'STRIPE_CONNECT_ERROR', message })
+        : new BadGatewayException({ code: 'STRIPE_CONNECT_ERROR', message });
+    }
+    throw err;
   }
 
   // ───────────────────── Stripe Connect (PAY-02) ─────────────────────
@@ -150,20 +172,15 @@ export class StripeWebhookService {
     });
     let accountId = restaurant.stripeAccountId;
     if (!accountId) {
-      const account = await this.stripe.accounts.create(
-        {
-          type: 'express',
-          country: restaurant.country,
-          email: restaurant.email ?? undefined,
-          business_profile: { name: restaurant.name },
-          capabilities: {
-            card_payments: { requested: true },
-            transfers: { requested: true },
-          },
-          metadata: { restaurantId },
-        },
-        { idempotencyKey: `connect-account-${restaurantId}` },
-      );
+      // Pays hors Stripe (Sénégal…) : compte « destinataire » ; sinon compte marchand.
+      const mode = connectMode(restaurant.country);
+      const account = await this.stripe.accounts
+        .create(connectAccountParams(restaurant), {
+          // Le mode fait partie de la clé : une tentative refusée avec d'autres
+          // paramètres ne bloque pas la nouvelle (Stripe garde la clé 24 h).
+          idempotencyKey: `connect-account-${restaurantId}-${mode}`,
+        })
+        .catch((err: unknown) => this.connectError(err));
       accountId = account.id;
       const claimed = await this.prisma.restaurant.updateMany({
         where: { id: restaurantId, stripeAccountId: null },
@@ -173,23 +190,54 @@ export class StripeWebhookService {
         throw new ConflictException('Compte Stripe déjà en cours de création');
       }
     }
-    const link = await this.stripe.accountLinks.create({
-      account: accountId,
-      type: 'account_onboarding',
-      return_url: returnUrl,
-      refresh_url: refreshUrl,
-    });
+    const link = await this.stripe.accountLinks
+      .create({
+        account: accountId,
+        type: 'account_onboarding',
+        return_url: returnUrl,
+        refresh_url: refreshUrl,
+      })
+      .catch((err: unknown) => this.connectError(err));
     return { url: link.url, expiresAt: new Date(link.expires_at * 1000) };
   }
 
+  /**
+   * État de la connexion Stripe. L'état est relu chez Stripe : au retour de
+   * l'onboarding, il est juste même sans webhook (développement local).
+   */
   async connectStatus(restaurantId: string) {
     const restaurant = await this.prisma.restaurant.findUniqueOrThrow({
       where: { id: restaurantId },
-      select: { stripeAccountId: true, stripeChargesEnabled: true },
+      select: {
+        stripeAccountId: true,
+        stripeChargesEnabled: true,
+        country: true,
+      },
     });
+    const mode = connectMode(restaurant.country);
+    let chargesEnabled = restaurant.stripeChargesEnabled;
+    if (this.stripe && restaurant.stripeAccountId) {
+      try {
+        const account = await this.stripe.accounts.retrieve(
+          restaurant.stripeAccountId,
+        );
+        chargesEnabled = isConnectReady(account);
+        if (chargesEnabled !== restaurant.stripeChargesEnabled) {
+          await this.prisma.restaurant.update({
+            where: { id: restaurantId },
+            data: { stripeChargesEnabled: chargesEnabled },
+          });
+        }
+      } catch (err) {
+        this.logger.warn(
+          `Lecture du compte Stripe impossible : ${(err as Error).message}`,
+        );
+      }
+    }
     return {
       connected: !!restaurant.stripeAccountId,
-      chargesEnabled: restaurant.stripeChargesEnabled,
+      chargesEnabled,
+      mode,
     };
   }
 }

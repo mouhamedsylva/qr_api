@@ -29,6 +29,7 @@ export interface LifecycleChange {
 export function nextLifecycleStep(
   sub: LifecycleInput,
   now: Date = new Date(),
+  reminderDays: number = TRIAL_REMINDER_DAYS,
 ): LifecycleChange | null {
   const t = now.getTime();
   switch (sub.status) {
@@ -40,7 +41,11 @@ export function nextLifecycleStep(
           ? null
           : { notice: 'TRIAL_ENDED' };
       }
-      if (left <= TRIAL_REMINDER_DAYS * DAY_MS && !sub.lastNotice) {
+      if (
+        reminderDays > 0 &&
+        left <= reminderDays * DAY_MS &&
+        !sub.lastNotice
+      ) {
         return { notice: 'TRIAL_ENDING' };
       }
       return null;

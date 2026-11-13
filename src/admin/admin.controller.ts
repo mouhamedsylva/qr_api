@@ -1,7 +1,10 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
+  HttpCode,
+  HttpStatus,
   Param,
   ParseUUIDPipe,
   Patch,
@@ -14,9 +17,12 @@ import { CurrentActor } from '../common/decorators/current-user.decorator';
 import { SuperAdminOnly } from '../common/decorators/super-admin.decorator';
 import type { Actor } from '../common/types/request-context';
 import { AdminService } from './admin.service';
+import { PlatformSettingsService } from '../billing/platform-settings.service';
 import {
   AuditQueryDto,
   CreatePlanDto,
+  DeleteRestaurantDto,
+  UpdateTrialSettingsDto,
   ListRestaurantsQueryDto,
   ModerateRestaurantDto,
   ModerateUserDto,
@@ -33,7 +39,22 @@ export class AdminController {
   constructor(
     private readonly admin: AdminService,
     private readonly audit: AuditQueryService,
+    private readonly settings: PlatformSettingsService,
   ) {}
+
+  /** Réglages de la période d'essai des nouveaux restaurants. */
+  @Get('settings/trial')
+  trialSettings() {
+    return this.settings.get();
+  }
+
+  @Patch('settings/trial')
+  updateTrialSettings(
+    @Body() dto: UpdateTrialSettingsDto,
+    @CurrentActor() actor: Actor,
+  ) {
+    return this.settings.updateTrial(dto, actor);
+  }
 
   @Get('restaurants')
   restaurants(@Query() query: ListRestaurantsQueryDto) {
@@ -47,6 +68,17 @@ export class AdminController {
     @CurrentActor() actor: Actor,
   ) {
     return this.admin.setRestaurantStatus(id, dto.status, dto.reason, actor);
+  }
+
+  /** Suppression logique : le restaurant disparaît, l'historique (commandes, paiements) est conservé. */
+  @Delete('restaurants/:id')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  deleteRestaurant(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: DeleteRestaurantDto,
+    @CurrentActor() actor: Actor,
+  ) {
+    return this.admin.deleteRestaurant(id, dto.reason, actor);
   }
 
   @Patch('users/:id/status')

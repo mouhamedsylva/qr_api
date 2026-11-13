@@ -1,11 +1,15 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
+import { BillingService } from '../billing/billing.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { isItemAvailable } from './availability';
 
 /** Menu affiché au client (PWA) : uniquement le contenu actif, sans données internes. */
 @Injectable()
 export class PublicMenuService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly billing: BillingService,
+  ) {}
 
   async bySlug(slug: string) {
     const restaurant = await this.prisma.restaurant.findFirst({
@@ -15,6 +19,7 @@ export class PublicMenuService {
     if (!restaurant) {
       throw new NotFoundException('Restaurant introuvable');
     }
+    await this.billing.assertRestaurantInService(restaurant.id);
     return this.forRestaurant(restaurant.id, restaurant.currency);
   }
 

@@ -11,6 +11,7 @@ import {
   PermissionOverrides,
   resolvePermissions,
 } from '../../auth/rbac/permissions';
+import { BillingService } from '../../billing/billing.service';
 import { PrismaService } from '../../prisma/prisma.service';
 import type { AppRequest } from '../types/request-context';
 
@@ -22,7 +23,10 @@ import type { AppRequest } from '../types/request-context';
  */
 @Injectable()
 export class TenantGuard implements CanActivate {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly billing: BillingService,
+  ) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const req = context.switchToHttp().getRequest<AppRequest>();
@@ -37,7 +41,7 @@ export class TenantGuard implements CanActivate {
 
     const restaurant = await this.prisma.restaurant.findFirst({
       where: { id: restaurantId, deletedAt: null },
-      select: { id: true, status: true },
+      select: { id: true, status: true, ownerId: true },
     });
     if (!restaurant) {
       throw new NotFoundException('Restaurant introuvable');
@@ -63,6 +67,22 @@ export class TenantGuard implements CanActivate {
       throw new ForbiddenException({
         code: 'RESTAURANT_BANNED',
         message: 'Cet établissement a été banni de la plateforme',
+      });
+    }
+
+    // Sans abonnement valide du propriétaire, seule la fiche du restaurant reste
+    // lisible (le back-office y lit l'état pour afficher l'écran d'abonnement).
+    const detailsOnly =
+      req.method === 'GET' &&
+      /\/restaurants\/[0-9a-f-]{36}\/?$/i.test(req.path ?? '');
+    if (
+      !detailsOnly &&
+      !(await this.billing.isOwnerEntitled(restaurant.ownerId))
+    ) {
+      throw new ForbiddenException({
+        code: 'SUBSCRIPTION_REQUIRED',
+        message:
+          'Aucun abonnement actif : choisissez un forfait pour accéder à votre restaurant',
       });
     }
 

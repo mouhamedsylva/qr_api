@@ -323,6 +323,20 @@ export class RestaurantsService {
         where: { restaurantId, deletedAt: null, status: { not: 'FREE' } },
       }),
     ]);
+    // Commandes du jour par mode (sur place / à emporter).
+    const byMode = await this.prisma.order.groupBy({
+      by: ['mode'],
+      where: {
+        restaurantId,
+        createdAt: { gte: since },
+        status: { notIn: ['CANCELLED', 'REJECTED'] },
+      },
+      _count: { _all: true },
+    });
+    const ordersByMode = {
+      DINE_IN: byMode.find((m) => m.mode === 'DINE_IN')?._count._all ?? 0,
+      TAKEAWAY: byMode.find((m) => m.mode === 'TAKEAWAY')?._count._all ?? 0,
+    };
     const salesTotal = sales._sum.total ?? 0;
     return {
       since,
@@ -330,6 +344,7 @@ export class RestaurantsService {
       isOpen: status.isOpen,
       salesTotal,
       ordersCount: sales._count,
+      ordersByMode,
       ordersInProgress: inProgress,
       averageBasket: sales._count ? Math.round(salesTotal / sales._count) : 0,
       tablesOccupied,
@@ -367,6 +382,7 @@ export class RestaurantsService {
     if (!restaurant) {
       throw new NotFoundException('Restaurant introuvable');
     }
+    await this.billing.assertRestaurantInService(restaurant.id);
     const { id, ...rest } = restaurant;
     return { ...rest, ...(await this.openStatus(id)) };
   }

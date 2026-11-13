@@ -18,6 +18,7 @@ import { paginate } from '../common/dto/pagination.dto';
 import { toCsv } from '../common/utils/csv.util';
 import type { Actor } from '../common/types/request-context';
 import { PrismaService } from '../prisma/prisma.service';
+import { BillingService } from '../billing/billing.service';
 import { RealtimeEvents } from '../realtime/realtime.events';
 import { RealtimeService } from '../realtime/realtime.service';
 import { PromotionsService } from '../promotions/promotions.service';
@@ -77,6 +78,7 @@ export class OrdersService {
   private readonly tokenSecret: string;
 
   constructor(
+    private readonly billing: BillingService,
     private readonly prisma: PrismaService,
     private readonly restaurants: RestaurantsService,
     private readonly qrTokens: QrTokenService,
@@ -117,21 +119,20 @@ export class OrdersService {
           message: 'QR code invalide ou expiré',
         });
       }
-      if (table.kind === 'COUNTER' && dto.mode === 'DINE_IN') {
-        throw new BadRequestException({
-          code: 'COUNTER_TAKEAWAY_ONLY',
-          message: 'Le QR comptoir ne permet que la vente à emporter',
-        });
-      }
+      // Le client choisit sur place ou à emporter. La table n'est rattachée
+      // qu'en sur place : une commande à emporter ne l'occupe pas. Sur place
+      // depuis le QR comptoir = servi au comptoir, sans table.
       return {
         restaurantId: table.restaurantId,
         mode: dto.mode,
         source: 'CUSTOMER',
-        tableId: table.kind === 'TABLE' ? table.id : null,
+        tableId:
+          table.kind === 'TABLE' && dto.mode === 'DINE_IN' ? table.id : null,
       };
     }
 
-    if (dto.restaurantSlug && dto.mode === 'TAKEAWAY') {
+    // Lien direct vers le menu : sur place (au comptoir) ou à emporter, sans table.
+    if (dto.restaurantSlug) {
       const restaurant = await this.prisma.restaurant.findFirst({
         where: { slug: dto.restaurantSlug, deletedAt: null },
         select: { id: true },
@@ -141,7 +142,7 @@ export class OrdersService {
       }
       return {
         restaurantId: restaurant.id,
-        mode: 'TAKEAWAY',
+        mode: dto.mode,
         source: 'CUSTOMER',
       };
     }
@@ -149,7 +150,7 @@ export class OrdersService {
     throw new BadRequestException({
       code: 'QR_REQUIRED',
       message:
-        'Une commande sur place doit être passée en scannant le QR code de la table',
+        'Scannez le QR code du restaurant ou ouvrez son menu pour commander',
     });
   }
 
@@ -302,7 +303,9 @@ export class OrdersService {
       });
     }
     // Hors horaires, seul le staff peut encore saisir une commande (RES-06).
+    // Sans abonnement valide, le restaurant ne prend plus de commandes clients.
     if (ctx.source === 'CUSTOMER') {
+      await this.billing.assertRestaurantInService(restaurant.id);
       const status = await this.restaurants.openStatus(restaurant.id);
       if (!status.isOpen) {
         throw new ConflictException({
@@ -312,7 +315,9 @@ export class OrdersService {
         });
       }
     }
-    if (ctx.mode === 'DINE_IN' && !ctx.tableId) {
+    // Personnel : une commande sur place se rattache à une table. Client : sur
+    // place sans table = servi au comptoir (QR comptoir ou lien du menu).
+    if (ctx.mode === 'DINE_IN' && !ctx.tableId && ctx.source !== 'CUSTOMER') {
       throw new BadRequestException({
         code: 'TABLE_REQUIRED',
         message: 'Une commande sur place doit être rattachée à une table',

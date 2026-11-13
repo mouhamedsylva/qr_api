@@ -9,9 +9,12 @@ import {
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { BillingCycle } from '@prisma/client';
 import { IsEnum, IsString, Length } from 'class-validator';
-import { CurrentUser } from '../common/decorators/current-user.decorator';
+import {
+  CurrentActor,
+  CurrentUser,
+} from '../common/decorators/current-user.decorator';
 import { Public } from '../common/decorators/public.decorator';
-import type { AuthUser } from '../common/types/request-context';
+import type { Actor, AuthUser } from '../common/types/request-context';
 import { BillingService } from './billing.service';
 
 export class ChangePlanDto {
@@ -33,6 +36,30 @@ export class BillingController {
   @Get('plans')
   plans() {
     return this.billing.listPublicPlans();
+  }
+
+  /** Offre d'essai en cours (page d'inscription). */
+  @Public()
+  @Get('trial-offer')
+  trialOffer() {
+    return this.billing.trialOffer();
+  }
+
+  /** Choix d'un forfait : appliqué pendant l'essai, sinon enregistré comme demande. */
+  @ApiBearerAuth()
+  @Post('subscription/choose')
+  @HttpCode(HttpStatus.OK)
+  choose(
+    @CurrentUser() user: AuthUser,
+    @Body() dto: ChangePlanDto,
+    @CurrentActor() actor: Actor,
+  ) {
+    return this.billing.chooseByOwner(
+      user.id,
+      dto.planCode,
+      dto.billingCycle,
+      actor,
+    );
   }
 
   @ApiBearerAuth()

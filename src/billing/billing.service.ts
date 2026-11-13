@@ -29,6 +29,12 @@ import {
   NOTIFICATION_SENDER,
   type NotificationSender,
 } from '../auth/notifications/notification-sender';
+import { ConfigService } from '@nestjs/config';
+import { AuditService } from '../audit/audit.service';
+import type { Actor } from '../common/types/request-context';
+import { PlatformSettingsService } from './platform-settings.service';
+
+const DAY_MS = 86_400_000;
 
 export type QuotaResource = 'restaurants' | 'tables' | 'members';
 
@@ -51,10 +57,21 @@ export interface EffectivePlan {
  */
 @Injectable()
 export class BillingService implements OnModuleInit {
+  private readonly subscriptionUrl: string;
+
   constructor(
     private readonly prisma: PrismaService,
     @Inject(NOTIFICATION_SENDER) private readonly sender: NotificationSender,
-  ) {}
+    private readonly settings: PlatformSettingsService,
+    private readonly audit: AuditService,
+    config: ConfigService,
+  ) {
+    const backoffice =
+      config.get<string>('BACKOFFICE_URL') ??
+      config.get<string>('CLIENT_APP_URL') ??
+      '';
+    this.subscriptionUrl = `${backoffice.replace(/\/+$/, '')}/subscription`;
+  }
 
   /** Crée les forfaits par défaut manquants (sans écraser les modifications). */
   async onModuleInit() {
@@ -82,8 +99,14 @@ export class BillingService implements OnModuleInit {
     return plan;
   }
 
-  /** Essai gratuit démarré à l'inscription du propriétaire. */
+  /**
+   * Essai gratuit démarré à l'inscription du propriétaire, d'une durée réglée
+   * par l'administration (Vigie → Réglages). Durée 0 : pas d'essai, le
+   * propriétaire démarre sur le forfait de repli (aucun abonnement créé).
+   */
   async startTrial(tx: Prisma.TransactionClient, userId: string) {
+    const { trialDays } = await this.settings.get();
+    if (trialDays <= 0) return null;
     const plan = await tx.plan.findUniqueOrThrow({
       where: { code: TRIAL_PLAN_CODE },
     });
@@ -92,9 +115,99 @@ export class BillingService implements OnModuleInit {
         userId,
         planId: plan.id,
         status: 'TRIALING',
-        trialEndsAt: new Date(Date.now() + plan.trialDays * 86_400_000),
+        trialEndsAt: new Date(Date.now() + trialDays * DAY_MS),
       },
     });
+  }
+
+  /** Offre d'essai affichée sur la page d'inscription. */
+  async trialOffer() {
+    const { trialDays } = await this.settings.get();
+    if (trialDays <= 0) return { days: 0, plan: null };
+    const plan = await this.planByCode(TRIAL_PLAN_CODE);
+    return { days: trialDays, plan: { code: plan.code, name: plan.name } };
+  }
+
+  /** Le propriétaire a-t-il un abonnement valide (essai en cours, actif, ou impayé en période de grâce) ? */
+  async isOwnerEntitled(ownerId: string, now = new Date()): Promise<boolean> {
+    const sub = await this.prisma.subscription.findUnique({
+      where: { userId: ownerId },
+    });
+    return isSubscriptionEntitled(sub, now);
+  }
+
+  /**
+   * Restaurant ouvert au public (menu, QR codes, commandes) : son propriétaire
+   * doit avoir un abonnement valide, sinon le restaurant est « momentanément
+   * indisponible » pour ses clients.
+   */
+  async assertRestaurantInService(restaurantId: string) {
+    const restaurant = await this.prisma.restaurant.findUnique({
+      where: { id: restaurantId },
+      select: { ownerId: true },
+    });
+    if (!restaurant || !(await this.isOwnerEntitled(restaurant.ownerId))) {
+      throw new ForbiddenException({
+        code: 'RESTAURANT_UNAVAILABLE',
+        message: 'Ce restaurant est momentanément indisponible',
+      });
+    }
+  }
+
+  /**
+   * Souscription d'un forfait par le propriétaire (page Abonnement ou écran
+   * d'abonnement) : le forfait est activé immédiatement pour un mois ou un an,
+   * ce qui débloque le back-office et le menu client. La souscription est
+   * signalée dans Vigie (« Souscriptions à vérifier ») pour contrôle du
+   * règlement ; le paiement en ligne des abonnements n'est pas encore branché.
+   */
+  async chooseByOwner(
+    userId: string,
+    planCode: string,
+    cycle: BillingCycle,
+    actor: Actor,
+  ) {
+    const plan = await this.planByCode(planCode);
+    if (!plan.isActive) {
+      throw new NotFoundException({
+        code: 'PLAN_NOT_FOUND',
+        message: 'Forfait indisponible',
+      });
+    }
+    await this.assertUsageFits(userId, plan);
+    const now = new Date();
+    const periodEnd = new Date(now);
+    if (cycle === 'YEARLY') periodEnd.setFullYear(periodEnd.getFullYear() + 1);
+    else periodEnd.setMonth(periodEnd.getMonth() + 1);
+    const data = {
+      planId: plan.id,
+      billingCycle: cycle,
+      status: 'ACTIVE' as const,
+      currentPeriodStart: now,
+      currentPeriodEnd: periodEnd,
+      graceUntil: null,
+      lastNotice: null,
+      // Souscription à vérifier par l'équipe QR-Order (règlement).
+      requestedPlanId: plan.id,
+      requestedCycle: cycle,
+      requestedAt: now,
+    };
+    const updated = await this.prisma.subscription.upsert({
+      where: { userId },
+      update: data,
+      create: { userId, ...data },
+      include: { plan: true, requestedPlan: true },
+    });
+    await this.audit.log({
+      action: 'billing.plan_subscribe',
+      entity: 'Subscription',
+      entityId: updated.id,
+      actorId: actor.id,
+      after: { plan: plan.code, cycle, until: periodEnd.toISOString() },
+      ip: actor.ip,
+      userAgent: actor.userAgent,
+    });
+    return { applied: true, subscription: updated };
   }
 
   async effectivePlan(ownerId: string): Promise<EffectivePlan> {
@@ -231,6 +344,11 @@ export class BillingService implements OnModuleInit {
       }),
       ...(data.status === 'ACTIVE' &&
         existing?.status !== 'ACTIVE' && { currentPeriodStart: now }),
+      ...((plan || data.status === 'ACTIVE') && {
+        requestedPlanId: null,
+        requestedCycle: null,
+        requestedAt: null,
+      }),
     };
     if (existing) {
       return this.prisma.subscription.update({
@@ -258,13 +376,34 @@ export class BillingService implements OnModuleInit {
     const effective = await this.effectivePlan(userId);
     const subscription = await this.prisma.subscription.findUnique({
       where: { userId },
-      include: { plan: true },
+      include: { plan: true, requestedPlan: true },
     });
+    const { trialReminderDays } = await this.settings.get();
+    const endsAt =
+      subscription?.status === 'TRIALING' ? subscription.trialEndsAt : null;
     return {
       subscription,
       effectivePlan: effective.plan,
       isFallback: effective.isFallback,
       usage: await this.usage(userId),
+      trial: endsAt
+        ? {
+            endsAt,
+            daysLeft: Math.max(
+              0,
+              Math.ceil((endsAt.getTime() - Date.now()) / DAY_MS),
+            ),
+            reminderDays: trialReminderDays,
+          }
+        : null,
+      requestedPlan: subscription?.requestedPlan
+        ? {
+            code: subscription.requestedPlan.code,
+            name: subscription.requestedPlan.name,
+            cycle: subscription.requestedCycle,
+            at: subscription.requestedAt,
+          }
+        : null,
     };
   }
 
@@ -281,9 +420,10 @@ export class BillingService implements OnModuleInit {
         user: { select: { email: true, firstName: true, deletedAt: true } },
       },
     });
+    const { trialReminderDays } = await this.settings.get();
     let processed = 0;
     for (const sub of candidates) {
-      const step = nextLifecycleStep(sub, now);
+      const step = nextLifecycleStep(sub, now, trialReminderDays);
       if (!step) continue;
       // Mise à jour conditionnelle : une autre instance n'enverra pas la même relance.
       const res = await this.prisma.subscription.updateMany({
@@ -301,10 +441,16 @@ export class BillingService implements OnModuleInit {
           channel: 'EMAIL',
           to: sub.user.email,
           template: `subscription_${step.notice.toLowerCase()}`,
-          ...noticeMessage(step.notice, sub.user.firstName, sub.plan.name, {
-            trialEndsAt: sub.trialEndsAt,
-            graceUntil: step.graceUntil ?? sub.graceUntil,
-          }),
+          ...noticeMessage(
+            step.notice,
+            sub.user.firstName,
+            sub.plan.name,
+            {
+              trialEndsAt: sub.trialEndsAt,
+              graceUntil: step.graceUntil ?? sub.graceUntil,
+            },
+            this.subscriptionUrl,
+          ),
         });
       }
     }
@@ -382,19 +528,23 @@ function noticeMessage(
   firstName: string,
   planName: string,
   dates: { trialEndsAt: Date | null; graceUntil: Date | null },
+  subscriptionUrl = '',
 ): { subject: string; body: string } {
+  const link = subscriptionUrl
+    ? `\n\nChoisir mon forfait : ${subscriptionUrl}`
+    : '';
   const hello = `Bonjour ${firstName},\n\n`;
   const sign = '\n\nL’équipe QR-Order';
   switch (notice) {
     case 'TRIAL_ENDING':
       return {
         subject: 'Votre essai QR-Order se termine bientôt',
-        body: `${hello}Votre essai du forfait ${planName} se termine le ${formatDate(dates.trialEndsAt)}. Choisissez votre forfait pour conserver toutes les fonctionnalités.${sign}`,
+        body: `${hello}Votre essai du forfait ${planName} se termine le ${formatDate(dates.trialEndsAt)}. Choisissez votre forfait pour conserver toutes les fonctionnalités.${link}${sign}`,
       };
     case 'TRIAL_ENDED':
       return {
         subject: 'Votre essai QR-Order est terminé',
-        body: `${hello}Votre essai du forfait ${planName} est terminé. Votre établissement continue de fonctionner avec le forfait Starter ; vos données sont conservées.${sign}`,
+        body: `${hello}Votre essai du forfait ${planName} est terminé. Votre établissement continue de fonctionner avec le forfait Starter ; vos données sont conservées.${link}${sign}`,
       };
     case 'PAYMENT_DUE':
       return {

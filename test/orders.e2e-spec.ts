@@ -227,20 +227,34 @@ describe('Commandes & temps réel (e2e)', () => {
       ).toBe(1);
     });
 
-    it('impose le QR pour le sur place et le comptoir pour l’emporter', async () => {
-      const noQr = await api()
+    it('laisse le client choisir sur place ou à emporter, avec ou sans table', async () => {
+      const noContext = await api()
+        .post('/api/v1/public/orders')
+        .set('Idempotency-Key', key())
+        .send({ mode: 'DINE_IN', items: [thieb()] })
+        .expect(400);
+      expect(noContext.body.code).toBe('QR_REQUIRED');
+
+      // Sur place sans table : servi au comptoir (lien du menu ou QR comptoir).
+      const linkDineIn = await api()
         .post('/api/v1/public/orders')
         .set('Idempotency-Key', key())
         .send({ mode: 'DINE_IN', restaurantSlug: owner.slug, items: [thieb()] })
-        .expect(400);
-      expect(noQr.body.code).toBe('QR_REQUIRED');
+        .expect(201);
+      expect(linkDineIn.body.order).toMatchObject({
+        mode: 'DINE_IN',
+        table: null,
+      });
 
       const counterDineIn = await api()
         .post('/api/v1/public/orders')
         .set('Idempotency-Key', key())
         .send({ mode: 'DINE_IN', qrToken: counterQr, items: [thieb()] })
-        .expect(400);
-      expect(counterDineIn.body.code).toBe('COUNTER_TAKEAWAY_ONLY');
+        .expect(201);
+      expect(counterDineIn.body.order).toMatchObject({
+        mode: 'DINE_IN',
+        table: null,
+      });
 
       const takeaway = await api()
         .post('/api/v1/public/orders')

@@ -30,6 +30,7 @@ import {
   UpdateTaxDto,
 } from './dto/restaurant.dto';
 import { RestaurantsService } from './restaurants.service';
+import { BillingService } from '../billing/billing.service';
 
 /**
  * Toutes les routes `:restaurantId` passent par TenantGuard (appartenance)
@@ -39,7 +40,10 @@ import { RestaurantsService } from './restaurants.service';
 @ApiBearerAuth()
 @Controller('restaurants')
 export class RestaurantsController {
-  constructor(private readonly restaurants: RestaurantsService) {}
+  constructor(
+    private readonly restaurants: RestaurantsService,
+    private readonly billing: BillingService,
+  ) {}
 
   @Get()
   list(@CurrentUser() user: AuthUser) {
@@ -54,8 +58,15 @@ export class RestaurantsController {
 
   @Get(':restaurantId')
   @RequirePermissions('restaurant.view')
-  findOne(@Param('restaurantId') id: string) {
-    return this.restaurants.findOne(id);
+  async findOne(@Param('restaurantId') id: string) {
+    const restaurant = await this.restaurants.findOne(id);
+    return {
+      ...restaurant,
+      // Faux : le back-office affiche l'écran d'abonnement (forfaits) à la place du tableau de bord.
+      subscriptionActive: await this.billing.isOwnerEntitled(
+        restaurant.ownerId,
+      ),
+    };
   }
 
   @Patch(':restaurantId')

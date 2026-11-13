@@ -17,6 +17,7 @@ import {
   IsUUID,
   Length,
   Matches,
+  Max,
   MaxLength,
   Min,
   ValidateIf,
@@ -40,6 +41,26 @@ export class ModerateRestaurantDto {
   @IsEnum(RestaurantStatus)
   status: RestaurantStatus;
 
+  @IsString()
+  @Length(3, 255)
+  reason: string;
+}
+
+/** Réglages de la période d'essai (Vigie → Réglages). */
+export class UpdateTrialSettingsDto {
+  @IsInt()
+  @Min(0)
+  @Max(365)
+  trialDays: number;
+
+  @IsInt()
+  @Min(0)
+  @Max(30)
+  trialReminderDays: number;
+}
+
+/** Suppression d'un restaurant par l'administration : motif obligatoire. */
+export class DeleteRestaurantDto {
   @IsString()
   @Length(3, 255)
   reason: string;
